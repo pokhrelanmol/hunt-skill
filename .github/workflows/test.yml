@@ -1,0 +1,30 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate repository structure
+        run: python3 scripts/validate_repo.py
+      - name: Run audit tool tests
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python3 -m unittest discover -s skill/hunt-skill/tests -v
+      - name: Smoke-test project installation
+        run: |
+          project="$(mktemp -d)"
+          git -C "$project" init -q
+          ./scripts/install.sh "$project"
+          test -f "$project/.agents/skills/hunt-skill/SKILL.md"
+          test -f "$project/.audit/graph/audit.db"

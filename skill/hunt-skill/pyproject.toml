@@ -1,0 +1,16 @@
+[project]
+name = "hunt-skill-tools"
+version = "0.1.0"
+description = "Dependency-free SQLite tools for the hunt-skill Codex workflow"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Adversarial Audit Hunt"
+  short_description: "Graph-backed adversarial smart-contract hunting"
+  default_prompt: "Use $hunt-skill to map this protocol and begin a focused impact-first hunt."
