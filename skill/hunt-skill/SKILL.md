@@ -19,12 +19,14 @@ python3 "${SKILL_ROOT}/scripts/auditctl.py" <command> --repo <target>
 2. Default to `CHAT`. Never begin `FULL AUDIT` unless the user explicitly requests a broad audit.
 3. Hunt both directions: start from reachable primitives and ask what they can break; start from meaningful impacts and search backward for reachable flows.
 4. Build protocol-specific impact goals. A generic vault/lending/bridge checklist is only a seed and cannot be marked `READY` until tied to this protocol's invariant, decision point, bad state, attacker goal, and candidate primitives.
-5. Treat every lead as an allegation. Trace reachability, state mutation, later consumption, blockers, economics, live configuration, and the strongest safe explanation.
-6. Use historical pattern matching in two bounded modes: as fallback inspiration when code-led hunting stalls, and as validation/novelty screening for a concrete finding. A match creates a local question; it never proves the current protocol is vulnerable.
-7. Use bounded SQLite queries. Do not load the complete database, all checkpoints, or large Markdown notebooks into context.
-8. Use the installed Tenderly skill first for simulations, traces, forks, and state overrides. Use `cast` for narrow read-only facts. Pin chain, block, address, code hash when available, and observation time.
-9. Never create or modify a PoC until the user has manually validated the hypothesis and a current approval is recorded. Never invoke `approve-poc` on the user's behalf unless the user explicitly asks to record approval after their review.
-10. Do not modify production contracts during setup, reconnaissance, or indexing.
+5. Impact-driven HUNT may not begin until deterministic call-site, argument-flow, return-use, direct-effect, and effective-effect graph gates pass for the pinned scope. Missing or unresolved information must be represented explicitly as `UNKNOWN`, never silently omitted.
+6. Prefer compiler AST/build artifacts and deterministic local tools for mechanical relationships. Never ask a model to reconstruct a transitive call graph when compiler-resolved evidence is available.
+7. Treat every lead as an allegation. Trace reachability, state mutation, later consumption, blockers, economics, live configuration, and the strongest safe explanation.
+8. Use historical pattern matching in two bounded modes: as fallback inspiration when code-led hunting stalls, and as validation/novelty screening for a concrete finding. A match creates a local question; it never proves the current protocol is vulnerable.
+9. Use bounded SQLite queries. Do not load the complete database, all checkpoints, or large Markdown notebooks into context.
+10. Use the installed Tenderly skill first for simulations, traces, forks, and state overrides. Use `cast` for narrow read-only facts. Pin chain, block, address, code hash when available, and observation time.
+11. Never create or modify a PoC until the user has manually validated the hypothesis and a current approval is recorded. Never invoke `approve-poc` on the user's behalf unless the user explicitly asks to record approval after their review.
+12. Do not modify production contracts during setup, reconnaissance, or indexing.
 
 ## Mode Router
 
@@ -32,7 +34,7 @@ python3 "${SKILL_ROOT}/scripts/auditctl.py" <command> --repo <target>
 |---|---|---|
 | Question, confusion, attack idea, continuation | `CHAT` | [workflows/chat.md](workflows/chat.md) |
 | Architecture, relationships, value/state flow | `RECON` | [workflows/recon.md](workflows/recon.md) |
-| Concrete module, invariant, flow, or impact | `HUNT` | [workflows/hunt.md](workflows/hunt.md) |
+| Concrete module, invariant, flow, or impact after RECON gate | `HUNT` | [workflows/hunt.md](workflows/hunt.md) |
 | One hypothesis requiring falsification | `VALIDATE` | [workflows/validate.md](workflows/validate.md) |
 | User-approved proof or final write-up | `PROVE` | [workflows/prove.md](workflows/prove.md) |
 | Explicit repository-wide audit | `FULL AUDIT` | [workflows/full-audit.md](workflows/full-audit.md) |
@@ -49,6 +51,7 @@ If intent is ambiguous, answer in `CHAT` and name the next discriminating check.
 2. Run `doctor`, `db-info`, and `stale` when the graph exists.
 3. Verify commit, dirty state, exact scope, exclusions, and prior-audit corpus before broad analysis.
 4. Initialize with [workflows/sqlite-setup.md](workflows/sqlite-setup.md) only when needed.
+5. If the requested mode is `HUNT`, run the [RECON workflow](workflows/recon.md) first unless its gate already passes for the current pinned scope.
 
 **Exit:** The active source snapshot and audit mode are explicit.
 
@@ -57,8 +60,9 @@ If intent is ambiguous, answer in `CHAT` and name the next discriminating check.
 **Entry:** Scope and question are explicit.
 
 1. Query `search`, `neighbors`, `path`, or `context` with small limits.
-2. Load exact source spans only after graph results identify them.
-3. Refresh stale facts before relying on them.
+2. For an entrypoint, retrieve exact call sites, parameter bindings, return use, runtime targets, direct effects, and shortest effective-effect paths before opening its transitive source tree.
+3. Load exact source spans only after graph results identify them.
+4. Refresh stale facts before relying on them.
 
 **Exit:** The current question has a compact evidence bundle, unresolved assumptions, and exact code anchors.
 
@@ -120,6 +124,9 @@ If intent is ambiguous, answer in `CHAT` and name the next discriminating check.
 ## Success Criteria
 
 - Scope and source freshness are pinned.
+- The procedural RECON gate passes before impact-driven HUNT begins.
+- Every scoped state-changing entrypoint has explicit call-site, argument, return-use, direct-effect, and effective-effect coverage, including explicit zero-result coverage where applicable.
+- Runtime dispatch candidates are separated from live-confirmed implementations, and supporting test code does not contaminate production paths.
 - Every important relation and claim has status, confidence, and evidence or an explicit unknown.
 - Impact goals combine a protocol invariant with a concrete protocol case.
 - Retrieval remains bounded to relevant rows and source spans.

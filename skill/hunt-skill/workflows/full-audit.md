@@ -15,11 +15,12 @@ Run this workflow only after an explicit broad-audit request.
 
 **Entry:** Scope is locked.
 
-1. Compile where feasible.
-2. Extract symbols, inheritance, modifiers, entrypoints, storage, direct calls, and source spans.
-3. Record extraction confidence and failures.
+1. Compile the clean pinned baseline where feasible.
+2. Extract symbols, inheritance, modifiers, state-changing entrypoints, unique call sites, exact argument bindings, return use, storage-rooted direct effects, runtime-target candidates, and source spans.
+3. Compute bounded shortest effective-effect paths and keep production paths isolated from supporting tests, mocks, handlers, harnesses, and scripts.
+4. Record extraction confidence and every unresolved item as `UNKNOWN`.
 
-**Exit:** Core code facts are queryable without whole-repository prompts.
+**Exit:** Entrypoint call trees, argument flow, return use, runtime targets, and direct/effective effects are queryable without whole-repository prompts.
 
 ## Phase 3: Relationship Recon
 
@@ -28,9 +29,9 @@ Run this workflow only after an explicit broad-audit request.
 1. Build authorization, state mutation, asset flow, lifecycle, callback, invariant, and external dependency views.
 2. Profile every applicable protocol archetype.
 3. Seed and refine protocol-specific impact goals.
-4. Run graph QA and freshness checks.
+4. Run the complete RECON gate and repair all silent coverage gaps.
 
-**Exit:** High-value decisions and bad states are mapped with evidence.
+**Exit:** High-value decisions and bad states are mapped with evidence, and impact-driven HUNT is unblocked only for the passing pinned scope.
 
 ## Phase 4: Bounded Sweep
 

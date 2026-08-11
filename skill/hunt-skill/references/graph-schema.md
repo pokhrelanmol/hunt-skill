@@ -9,7 +9,10 @@ Use stable semantic IDs:
 ```text
 contract:src/Vault.sol:Vault
 function:src/Vault.sol:Vault.redeem(uint256,address,address)
+parameter:function:src/Vault.sol:Vault.redeem(uint256,address,address):0
+callsite:function:src/Vault.sol:Vault.redeem(uint256,address,address):ast-431:offset-9210
 storage:src/Vault.sol:Vault.totalDebt
+effect:callsite:function:src/Vault.sol:Vault.redeem(uint256,address,address):ast-431:offset-9210:0
 role:keeper
 asset:USDC
 external:morpho-blue
@@ -19,6 +22,8 @@ HYP-001
 ```
 
 Do not use line numbers as identity. Put line ranges in evidence.
+
+Call-site identity must include the caller plus a compiler/source identity such as AST ID and byte offset. Never collapse repeated calls because they share a caller and callee. Parameter position is canonical and zero-based.
 
 ## Core Records
 
@@ -36,6 +41,23 @@ Do not use line numbers as identity. Put line ranges in evidence.
 | `known_findings`, `novelty_checks` | Historical precedents and duplicate screening. |
 | `live_evidence` | Chain/block/address-bound configuration, simulation, and trace observations. |
 | `manual_approvals` | Human approval records binding PoC work to a claim and source snapshot. |
+
+The current generic records can represent deterministic RECON facts as typed nodes, relations, and evidence. Do not claim that a dedicated normalized dataflow table exists unless the installed tooling actually provides one.
+
+## Required RECON Records
+
+For every scoped function, retain compact queryable facts for:
+
+- canonical parameters: position, name, type, storage location, source span, and compiler node ID;
+- unique call sites: caller, declared callee, callee expression, dispatch, AST ID, byte offset, condition, status, confidence, and baseline;
+- argument bindings: call site, canonical parameter, exact expression, expression type, origin kind, and origin node IDs;
+- return components: type, binding, and whether assigned, tuple-bound, ignored, returned, or consumed;
+- runtime targets: candidate function, resolution kind, evidence, confidence, and separate live narrowing;
+- direct effects: local storage, token ledger, external protocol, or unresolved assembly, with operation, target/value expressions, condition, and source span;
+- effective effects: entrypoint, leaf, direct effect, shortest ordered call-site path, depth, status, and confidence;
+- extraction coverage: explicit complete, incomplete, zero-call, or zero-effect disposition for each scoped function.
+
+If the available deterministic tooling cannot populate a field, store the missing fact as `UNKNOWN` with the exact next check. Never fill a mechanical field from model intuition and label it `VERIFIED`.
 
 ## Statuses
 
@@ -70,7 +92,9 @@ Prefer these controlled types; add a namespaced extension only when none fits:
 
 ```text
 DECLARES, INHERITS, OVERRIDES, CALLS, DELEGATECALLS, CALLBACKS_TO
+BINDS_ARGUMENT, BINDS_RETURN, POSSIBLE_TARGET, LIVE_TARGET
 READS, WRITES, DERIVES_FROM, INVALIDATES, CHECKPOINTS
+DIRECT_EFFECT, EFFECTIVE_EFFECT, PATH_STEP
 GUARDED_BY, AUTHORIZES, GRANTS_ROLE, REVOKES_ROLE, TRUSTS
 TRANSFERS, MINTS, BURNS, DEPOSITS, WITHDRAWS, BORROWS, REPAYS
 LIFECYCLE_NEXT, CANCELS, SETTLES, LIQUIDATES, CLAIMS
@@ -79,6 +103,14 @@ EXTERNALIZES_TO, CONFIGURED_BY, PRICES, BACKS, BREAKS
 ```
 
 Every relation needs endpoints, status, confidence, and evidence or an explicit `UNKNOWN` note. Name similarity alone never proves an edge.
+
+## Production Path Policy
+
+- Primary scoped contracts and explicitly classified production dependencies may enter default call and effect paths.
+- Tests, mocks, handlers, harnesses, deployment scripts, and test-only overrides are supporting context only.
+- Compiler candidate targets and live-confirmed targets remain distinguishable.
+- Interface, virtual, proxy, beacon, diamond, and dynamic dispatch stay `UNKNOWN` or `INFERRED` until their candidate set or deployment evidence is recorded.
+- Persistent storage requires an lvalue rooted in a state variable or proven `storage` alias. A struct-field declaration alone is insufficient.
 
 ## Query Bounds
 

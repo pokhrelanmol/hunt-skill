@@ -1,12 +1,17 @@
 # HUNT Workflow
 
+## Entry Gate
+
+Do not begin impact-driven hunting until the RECON gate passes for the current pinned scope. Retrieve the relevant entrypoint's call sites, argument bindings, return use, direct effects, effective effects, runtime candidates, and unresolved records first. If coverage is stale or incomplete, return to [recon.md](recon.md).
+
 ## Phase 1: Choose A Bounded Target
 
 **Entry:** A concrete module, flow, invariant, attack surface, or impact is requested.
 
 1. Select one or a small batch of connected `READY` impact goals.
-2. Enumerate relevant entrypoints and state transitions once.
-3. Form focused entrypoint-impact pairs; avoid broad checklist scans.
+2. Select relevant entrypoints from the gated production graph rather than re-enumerating them from memory.
+3. Retrieve shortest effect paths and exact call-site bindings for the decision points that can create the target bad state.
+4. Form focused entrypoint-impact pairs; avoid broad checklist scans.
 
 **Exit:** Each task names one impact, one reachable surface, and the evidence needed to change status.
 
@@ -16,8 +21,10 @@
 
 1. Forward: trace attacker-controlled primitives into later consumers and impacts.
 2. Backward: start from the bad decision and enumerate all reachable ways to shape its inputs.
-3. Alternate first-principles and state-consistency lenses.
-4. Inspect multi-function, multi-transaction, and external-protocol composition.
+3. At each step, distinguish the compiler-declared callee from possible runtime implementations and live-confirmed targets.
+4. Alternate first-principles and state-consistency lenses.
+5. Inspect multi-function, multi-transaction, and external-protocol composition.
+6. Treat an `UNKNOWN` edge as a bounded investigation item, never as proof that a path exists or does not exist.
 
 **Exit:** Each promising chain has attacker capability, state mutation, persistence, later consumer, and impact; weak paths have kill evidence.
 
