@@ -88,6 +88,11 @@ RELATION_TYPES = {
     "PRICES",
     "BACKS",
     "BREAKS",
+    "FOCUSES_ON",
+    "INVESTIGATES",
+    "OBSERVED_IN",
+    "ASSUMES",
+    "REVIVES",
 }
 
 
@@ -882,6 +887,49 @@ def stable_id(prefix: str, text: str) -> str:
 
 
 def related_candidates(conn, text: str, limit: int = 10) -> list[dict[str, Any]]:
+    def add_unique(rows: list[dict[str, Any]], row: dict[str, Any]) -> None:
+        key = (row["record_type"], row["record_id"])
+        if key not in {(item["record_type"], item["record_id"]) for item in rows}:
+            rows.append(row)
+
+    unique: list[dict[str, Any]] = []
+    subject_tokens = [token.lower() for token in re.findall(r"[A-Za-z][A-Za-z0-9_:\-]{3,}", text)[:12]]
+    if subject_tokens:
+        clauses = " OR ".join(
+            "(lower(r.src_id) LIKE ? OR lower(r.dst_id) LIKE ? OR lower(n.name) LIKE ? OR lower(n.summary) LIKE ?)"
+            for _ in subject_tokens
+        )
+        params: list[Any] = []
+        for token in subject_tokens:
+            like = f"%{token}%"
+            params.extend([like, like, like, like])
+        rows = conn.execute(
+            "SELECT DISTINCT r.src_id, r.dst_id, r.type FROM relations r "
+            "LEFT JOIN nodes n ON n.id IN (r.src_id, r.dst_id) "
+            f"WHERE {clauses} ORDER BY r.id LIMIT ?",
+            (*params, limit * 4),
+        ).fetchall()
+        for row in rows:
+            for endpoint in (row["src_id"], row["dst_id"]):
+                if endpoint.startswith("JOB-"):
+                    add_unique(
+                        unique,
+                        {
+                            "record_type": "investigations",
+                            "record_id": endpoint,
+                            "snippet": f"explicit relation {row['type']} may be affected",
+                        },
+                    )
+                elif endpoint.startswith("HYP-"):
+                    add_unique(
+                        unique,
+                        {
+                            "record_type": "hypotheses",
+                            "record_id": endpoint,
+                            "snippet": f"explicit relation {row['type']} may be affected",
+                        },
+                    )
+
     try:
         hits = search_rows(conn, text, limit)
     except ValueError:
@@ -902,22 +950,33 @@ def related_candidates(conn, text: str, limit: int = 10) -> list[dict[str, Any]]
             (*params, limit),
         ).fetchall()
         hits.extend(as_dicts(rows))
-    seen = set()
-    unique = []
+        job_clauses = " OR ".join("(lower(goal) LIKE ? OR lower(result) LIKE ?)" for _ in tokens)
+        job_params: list[Any] = []
+        for token in tokens:
+            like = f"%{token}%"
+            job_params.extend([like, like])
+        rows = conn.execute(
+            "SELECT 'investigations' AS record_type, id AS record_id, "
+            "'job goal/result may be affected' AS snippet FROM investigations "
+            "WHERE mode='JOB' AND status IN ('ACTIVE','NEXT','PARKED','BLOCKED') "
+            f"AND ({job_clauses}) ORDER BY started_at DESC LIMIT ?",
+            (*job_params, limit),
+        ).fetchall()
+        hits.extend(as_dicts(rows))
     for hit in hits:
-        key = (hit["record_type"], hit["record_id"])
-        if key not in seen:
-            seen.add(key)
-            unique.append(hit)
+        add_unique(unique, hit)
     return unique[:limit]
 
 
 def cmd_context_add(args) -> None:
     repo = repo_path(args)
     conn = connect(repo)
+    if args.status.upper() == "VERIFIED":
+        raise ValueError("user context cannot be stored as VERIFIED; verify independently first")
     status = require_status(args.status, EVIDENCE_STATUSES, "evidence status")
     fact_id = args.id or stable_id("fact:user-context", args.statement)
     now = utcnow()
+    affected = related_candidates(conn, args.statement, args.limit)
     conn.execute(
         "INSERT INTO facts(id, subject_id, kind, statement, status, confidence, created_at, updated_at) "
         "VALUES(?, ?, 'USER_CONTEXT', ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET "
@@ -931,7 +990,6 @@ def cmd_context_add(args) -> None:
         (fact_id, args.note or args.statement, args.retrieval_handle, now),
     )
     upsert_search(conn, "facts", fact_id)
-    affected = related_candidates(conn, args.statement, args.limit)
     conn.commit()
     conn.close()
     emit(
@@ -996,6 +1054,13 @@ def cmd_observation_add(args) -> None:
 
 def cmd_probe_add(args) -> None:
     conn = connect(repo_path(args))
+    status = require_status(args.status, EVIDENCE_STATUSES, "evidence status")
+    if args.executed and status == "UNKNOWN":
+        status = "VERIFIED"
+    if status == "VERIFIED" and not args.executed:
+        raise ValueError("VERIFIED state probes require --executed and execution provenance")
+    if status == "VERIFIED" and not args.harness:
+        raise ValueError("VERIFIED state probes require --harness or execution handle")
     body = (
         f"setup: {args.setup}\nsequence: {args.sequence}\n"
         f"before: {args.state_before or ''}\nafter: {args.state_after or ''}\nresult: {args.result}"
@@ -1004,9 +1069,10 @@ def cmd_probe_add(args) -> None:
     now = utcnow()
     conn.execute(
         "INSERT INTO facts(id, subject_id, kind, statement, status, confidence, created_at, updated_at) "
-        "VALUES(?, ?, 'STATE_PROBE', ?, 'VERIFIED', 0.8, ?, ?) ON CONFLICT(id) DO UPDATE SET "
-        "subject_id=excluded.subject_id, statement=excluded.statement, updated_at=excluded.updated_at",
-        (fact_id, args.job_id, body, now, now),
+        "VALUES(?, ?, 'STATE_PROBE', ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET "
+        "subject_id=excluded.subject_id, statement=excluded.statement, status=excluded.status, "
+        "confidence=excluded.confidence, updated_at=excluded.updated_at",
+        (fact_id, args.job_id, body, status, args.confidence, now, now),
     )
     conn.execute(
         "INSERT INTO evidence(record_type, record_id, source_kind, note, retrieval_handle, created_at) "
@@ -1016,7 +1082,21 @@ def cmd_probe_add(args) -> None:
     upsert_search(conn, "facts", fact_id)
     conn.commit()
     conn.close()
-    emit({"ok": True, "id": fact_id, "job_id": args.job_id})
+    result = {"ok": True, "id": fact_id, "job_id": args.job_id, "status": status}
+    if args.observation:
+        observation_id = stable_id("fact:observation", f"{args.job_id}\0{args.observation}")
+        conn = connect(repo_path(args))
+        conn.execute(
+            "INSERT INTO facts(id, subject_id, kind, statement, status, confidence, created_at, updated_at) "
+            "VALUES(?, ?, 'OBSERVATION', ?, 'INFERRED', 0.5, ?, ?) ON CONFLICT(id) DO UPDATE SET "
+            "subject_id=excluded.subject_id, statement=excluded.statement, updated_at=excluded.updated_at",
+            (observation_id, args.job_id, args.observation, now, now),
+        )
+        upsert_search(conn, "facts", observation_id)
+        conn.commit()
+        conn.close()
+        result["observation_id"] = observation_id
+    emit(result)
 
 
 def cmd_research_packet(args) -> None:
@@ -1024,7 +1104,77 @@ def cmd_research_packet(args) -> None:
     job = conn.execute("SELECT * FROM investigations WHERE id=? AND mode='JOB'", (args.job_id,)).fetchone()
     if job is None:
         raise ValueError(f"job not found: {args.job_id}")
-    context_hits = search_rows(conn, job["goal"], args.limit)
+    linked_relations = as_dicts(
+        conn.execute(
+            "SELECT * FROM relations WHERE src_id=? OR dst_id=? ORDER BY id LIMIT ?",
+            (args.job_id, args.job_id, args.limit),
+        )
+    )
+    linked_ids = {
+        edge[side]
+        for edge in linked_relations
+        for side in ("src_id", "dst_id")
+        if edge[side] != args.job_id
+    }
+    linked: dict[str, list[dict[str, Any]]] = {
+        "nodes": [],
+        "impact_goals": [],
+        "invariants": [],
+        "facts": [],
+        "hypotheses": [],
+        "known_findings": [],
+        "live_evidence": [],
+    }
+    deferred_ids: set[str] = set()
+    for record_id in sorted(linked_ids):
+        if record_id.startswith("impact:"):
+            row = conn.execute("SELECT * FROM impact_goals WHERE id=?", (record_id,)).fetchone()
+            if row:
+                item = dict(row)
+                item["candidate_primitives"] = json.loads(item.pop("candidate_primitives_json"))
+                linked["impact_goals"].append(item)
+                if item["invariant_id"]:
+                    deferred_ids.add(item["invariant_id"])
+        elif record_id.startswith("invariant:"):
+            row = conn.execute("SELECT * FROM invariants WHERE id=?", (record_id,)).fetchone()
+            if row:
+                linked["invariants"].append(dict(row))
+        elif record_id.startswith("fact:"):
+            row = conn.execute("SELECT * FROM facts WHERE id=?", (record_id,)).fetchone()
+            if row:
+                linked["facts"].append(dict(row))
+        elif record_id.startswith("HYP-"):
+            row = conn.execute(
+                "SELECT id, title, status, claim, next_check, rejection_reason, reopen_condition "
+                "FROM hypotheses WHERE id=?",
+                (record_id,),
+            ).fetchone()
+            if row:
+                linked["hypotheses"].append(dict(row))
+        elif record_id.startswith("KNOWN-"):
+            row = conn.execute("SELECT * FROM known_findings WHERE id=?", (record_id,)).fetchone()
+            if row:
+                linked["known_findings"].append(dict(row))
+        elif record_id.startswith("LIVE-"):
+            row = conn.execute("SELECT * FROM live_evidence WHERE id=?", (record_id,)).fetchone()
+            if row:
+                linked["live_evidence"].append(dict(row))
+        else:
+            row = conn.execute("SELECT * FROM nodes WHERE id=?", (record_id,)).fetchone()
+            if row:
+                linked["nodes"].append(dict(row))
+    for record_id in sorted(deferred_ids - linked_ids):
+        if record_id.startswith("invariant:"):
+            row = conn.execute("SELECT * FROM invariants WHERE id=?", (record_id,)).fetchone()
+            if row:
+                linked["invariants"].append(dict(row))
+    if linked_relations:
+        context_hits = []
+    else:
+        try:
+            context_hits = search_rows(conn, job["goal"], args.limit)
+        except ValueError:
+            context_hits = []
     job_facts = as_dicts(
         conn.execute(
             "SELECT id, kind, statement, status, confidence, updated_at FROM facts "
@@ -1044,10 +1194,17 @@ def cmd_research_packet(args) -> None:
     emit(
         {
             "job": dict(job),
+            "linked_relations": linked_relations,
+            "linked": linked,
             "context_hits": context_hits,
             "job_facts": job_facts,
             "related_hypotheses": hypotheses,
-            "bounds": {"limit": args.limit, "source_text_included": False},
+            "bounds": {
+                "limit": args.limit,
+                "source_text_included": False,
+                "retrieval": "explicit-relations-first",
+                "fts_fallback_used": not linked_relations,
+            },
         }
     )
 
@@ -1297,7 +1454,7 @@ def add_status_confidence(parser: argparse.ArgumentParser) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Compact SQLite audit graph and human-gated hunt workflow")
+    parser = argparse.ArgumentParser(description="Compact SQLite audit graph and human-steered hunt workflow")
     sub = parser.add_subparsers(dest="command", required=True)
 
     doctor = sub.add_parser("doctor", help="check Python, SQLite, FTS, and Tenderly visibility")
@@ -1446,6 +1603,10 @@ def build_parser() -> argparse.ArgumentParser:
     probe.add_argument("--state-after")
     probe.add_argument("--result", required=True)
     probe.add_argument("--harness")
+    probe.add_argument("--status", default="INFERRED")
+    probe.add_argument("--confidence", type=float, default=0.5)
+    probe.add_argument("--executed", action="store_true")
+    probe.add_argument("--observation")
     probe.set_defaults(func=cmd_probe_add)
 
     hypothesis = sub.add_parser("hypothesis-upsert", help="create or update a hypothesis")
@@ -1578,7 +1739,7 @@ def build_parser() -> argparse.ArgumentParser:
     checkpoint.add_argument("--output")
     checkpoint.set_defaults(func=cmd_checkpoint)
 
-    approve = sub.add_parser("approve-poc", help="interactive human-only PoC approval")
+    approve = sub.add_parser("approve-poc", help="legacy interactive PoC approval compatibility")
     add_repo(approve)
     approve.add_argument("hypothesis_id")
     approve.add_argument("--approved-by", required=True)

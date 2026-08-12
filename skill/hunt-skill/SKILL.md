@@ -19,7 +19,7 @@ python3 "${SKILL_ROOT}/scripts/auditctl.py" <command> --repo <target>
 2. Default to `CHAT`. Never begin `FULL AUDIT` unless the user explicitly requests a broad audit.
 3. Hunt both directions: start from reachable primitives and ask what they can break; start from meaningful impacts and search backward for reachable flows.
 4. Build protocol-specific impact goals. A generic vault/lending/bridge checklist is only a seed and cannot be marked `READY` until tied to this protocol's invariant, decision point, bad state, attacker goal, and candidate primitives.
-5. Impact-driven HUNT may not begin until deterministic call-site, argument-flow, return-use, direct-effect, and effective-effect graph gates pass for the pinned scope. Missing or unresolved information must be represented explicitly as `UNKNOWN`, never silently omitted.
+5. Normal interactive HUNT needs sufficient broad RECON plus deep deterministic graph/context coverage for the active job's relevant surface. Full-audit mode may require broader full-scope deterministic gates. Missing or unresolved information must be represented explicitly as `UNKNOWN`, never silently omitted.
 6. Prefer compiler AST/build artifacts and deterministic local tools for mechanical relationships. Never ask a model to reconstruct a transitive call graph when compiler-resolved evidence is available.
 7. Treat every lead as an allegation. Trace reachability, state mutation, later consumption, blockers, economics, live configuration, and the strongest safe explanation.
 8. Use historical pattern matching in two bounded modes: as fallback inspiration when code-led hunting stalls, and as validation/novelty screening for a concrete finding. A match creates a local question; it never proves the current protocol is vulnerable.
@@ -55,7 +55,7 @@ If intent is ambiguous, answer in `CHAT` and name the next discriminating check.
 4. Initialize with [workflows/sqlite-setup.md](workflows/sqlite-setup.md) only when needed.
 5. If this is a new audit, use existing RECON/profile/snapshot/graph mechanisms to establish architecture, actors, assets, value flow, lifecycles, integrations, intended behavior, and material invariants before hunting.
 6. Ask the user only for material missing context that docs/code cannot establish; record non-material unknowns as `UNKNOWN` and continue.
-7. If the requested mode is `HUNT`, run the [RECON workflow](workflows/recon.md) first unless its gate already passes for the current pinned scope.
+7. If the requested mode is `HUNT`, run [RECON](workflows/recon.md) first for broad protocol context, then deepen local graph coverage only for the chosen active job.
 
 **Exit:** The active source snapshot and audit mode are explicit.
 
@@ -129,14 +129,15 @@ If intent is ambiguous, answer in `CHAT` and name the next discriminating check.
 - [references/evidence-promotion.md](references/evidence-promotion.md): validation, rejection, automatic proof handoff, and report gates.
 - [references/historical-research.md](references/historical-research.md): Solodit, similar audits, and hack-registry routing.
 - [references/live-investigation.md](references/live-investigation.md): Tenderly-first on-chain evidence policy.
+- [references/state-probes.md](references/state-probes.md): focused probe selection and provenance rules.
 - [references/tool-routing.md](references/tool-routing.md): choose local tools and specialist skills from evidence.
 - [references/cli.md](references/cli.md): compact command reference.
 
 ## Success Criteria
 
 - Scope and source freshness are pinned.
-- The procedural RECON gate passes before impact-driven HUNT begins.
-- Every scoped state-changing entrypoint has explicit call-site, argument, return-use, direct-effect, and effective-effect coverage, including explicit zero-result coverage where applicable.
+- Basic global RECON is sufficient for normal interactive HUNT; deep deterministic coverage is required for the active job's relevant surface.
+- Full-audit mode can still require every scoped state-changing entrypoint to have explicit call-site, argument, return-use, direct-effect, and effective-effect coverage, including explicit zero-result coverage where applicable.
 - Runtime dispatch candidates are separated from live-confirmed implementations, and supporting test code does not contaminate production paths.
 - Every important relation and claim has status, confidence, and evidence or an explicit unknown.
 - Impact goals combine a protocol invariant with a concrete protocol case.

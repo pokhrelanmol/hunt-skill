@@ -1,52 +1,43 @@
 # HUNT Workflow
 
+HUNT is one meaningful `ACTIVE` job attacking one protocol-specific impact, not a category scan or batch queue. Work autonomously inside the current research question; stop before switching to an independent direction.
+
 ## Entry Gate
 
-Do not begin impact-driven hunting until the RECON gate passes for the current pinned scope. Retrieve the relevant entrypoint's call sites, argument bindings, return use, direct effects, effective effects, runtime candidates, and unresolved records first. If coverage is stale or incomplete, return to [recon.md](recon.md).
+For normal interactive hunting, require broad protocol context from RECON: scope, architecture, actors, assets, value flow, integrations, lifecycles, and important invariants. Do not require perfect deterministic coverage for every state-changing entrypoint before the first hunt.
 
-## Phase 1: Choose A Bounded Target
+For the `ACTIVE` job, require deep local graph/context coverage for the relevant subsystem, function, state, integration, or impact. If local call/effect/argument coverage is stale or missing, deepen RECON only for that surface.
 
-**Entry:** A concrete module, flow, invariant, attack surface, or impact is requested.
+## Active Job Frame
 
-1. Select one or a small batch of connected `READY` impact goals.
-2. Select relevant entrypoints from the gated production graph rather than re-enumerating them from memory.
-3. Retrieve shortest effect paths and exact call-site bindings for the decision points that can create the target bad state.
-4. Form focused entrypoint-impact pairs; avoid broad checklist scans.
+Before tracing, make the job precise:
 
-**Exit:** Each task names one impact, one reachable surface, and the evidence needed to change status.
+1. Niche invariant: what specifically must remain true?
+2. Forbidden state: what exact state violates it?
+3. Sensitive consumer: which decision/function/accounting operation makes it matter?
+4. Attacker objective: what must the attacker cause or exploit?
+5. Relevant dimensions: select only useful lenses, such as local state, economic/accounting, lifecycle/order, boundary/math, actors/cohorts, permissions, external integration, live state, historical primitive, cross-chain, or State Probe.
 
-## Phase 2: Hunt Forward And Backward
+## Combined Impact Loop
 
-**Entry:** Focused pairs exist.
+1. Load the bounded `research-packet` for the `ACTIVE` job.
+2. Trace backward from impact: sensitive consumer -> bad input -> state representation -> state source -> mutation path -> possible attacker primitive.
+3. Trace forward from attacker: callable/actionable primitive -> state mutation -> bad representation -> sensitive consumer -> forbidden state -> impact.
+4. Use selected dimensions together around this same forbidden state:
+   - local code/dataflow: origin, cache, normalization, rounding, writers, consumers, sibling paths, guards, callbacks, inverse/cancel paths;
+   - economic/accounting: economic reality vs protocol representation, stale or asymmetric updates, double counting, delayed loss, early gain, reset/restoration mismatch;
+   - lifecycle/order: partial, repeated, delayed, cancelled, restored, async, reordered, or intermediate states that remain realistically reachable;
+   - actor/cohort: first/last/early/late users, attacker/victim/keeper/liquidator/relayer interactions when they affect loss allocation;
+   - external/live: exact external state, attacker reachability, local consumption before correction, and only necessary deployment/config facts;
+   - historical: search for the primitive required by this impact, extract required conditions, then verify them locally.
+5. Read relevant existing tests/harnesses before writing or running a probe.
+6. When practical for an important job, run a focused State Probe; compare expected-equivalent before/after state.
+7. Store probe results and unexpected behavior as `STATE_PROBE` or `OBSERVATION`. An anomaly is not automatically a hypothesis.
+8. Form a hypothesis only when a concrete chain connects attacker -> reachable action -> local/external state -> bad representation -> sensitive consumer -> forbidden state -> impact.
+9. Falsify serious hypotheses across all material dimensions: reachability, permissions, ordering, sync/correction, external reachability, live config, timing, liquidity/capital, actual impact, victim requirements, intended behavior, and known/duplicate issues.
+10. Conclude the `ACTIVE` job as `DONE`, `BLOCKED`, or with a linked hypothesis.
+11. Persist the result, explain what was learned/rejected/uncertain/suspicious, recommend the next highest-value direction, and stop for human steering.
 
-1. Forward: trace attacker-controlled primitives into later consumers and impacts.
-2. Backward: start from the bad decision and enumerate all reachable ways to shape its inputs.
-3. At each step, distinguish the compiler-declared callee from possible runtime implementations and live-confirmed targets.
-4. Alternate first-principles and state-consistency lenses.
-5. Inspect multi-function, multi-transaction, and external-protocol composition.
-6. Treat an `UNKNOWN` edge as a bounded investigation item, never as proof that a path exists or does not exist.
+## Pattern Fallback
 
-**Exit:** Each promising chain has attacker capability, state mutation, persistence, later consumer, and impact; weak paths have kill evidence.
-
-## Phase 3: Consume And Rank
-
-**Entry:** The bounded batch is complete.
-
-1. Deduplicate by root cause, not title.
-2. Merge compatible primitives into the shortest attacker lifecycle.
-3. Rank hypotheses by likely Medium/High impact and next-check value.
-4. Stop investigating paths with sub-Medium impact unless they compose with an active higher-impact chain.
-
-**Exit:** A small set of hypotheses moves to `VALIDATE`; all others are rejected, blocked, or retained as primitives.
-
-## Phase 4: Pattern-Inspiration Fallback
-
-**Entry:** The bounded code-led hunt produced no useful hypothesis or next check.
-
-1. Select one high-value `READY` impact, invariant, or material integration.
-2. Search similar audits, Solodit, and the hack registry for the same economic decision and attacker primitive.
-3. Convert each relevant match into a current-protocol question with explicit required conditions.
-4. Return to Phase 2 and independently trace the current code.
-5. Stop after one focused pass if no match becomes locally reachable.
-
-**Exit:** A locally anchored lead moves to `VALIDATE`, or the fallback ends with no candidate. Historical similarity alone never changes status.
+If the active code-led job stalls, run one focused historical search anchored to the same forbidden state, sensitive consumer, integration, or attacker primitive. Convert any match into required conditions and retrace current code. Historical similarity never changes status by itself.

@@ -97,6 +97,13 @@ USER_CONTEXT fact starts UNKNOWN unless independently verified.
 New context must be linked to affected jobs, hypotheses, assumptions, or rejected paths before it changes audit state.
 ```
 
+State probe lifecycle:
+
+```text
+STATE_PROBE starts INFERRED unless an executed harness/trace/log supports VERIFIED.
+Unexpected probe output becomes OBSERVATION first, not an automatic hypothesis.
+```
+
 Impact lifecycle:
 
 - `DRAFT`: generic seed or missing protocol fields; never use as a complete hunt target.

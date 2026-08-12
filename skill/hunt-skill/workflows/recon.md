@@ -1,61 +1,64 @@
 # RECON Workflow
 
+RECON has two depths: basic global context for normal interactive hunting, and deep deterministic local coverage for the active job. Explicit full-audit mode may still require broad systematic coverage.
+
 ## Phase 1: Bound The Map
 
-**Entry:** The user requests architecture, surface, relationship, or flow mapping.
-
 1. Lock a clean commit or explicit baseline snapshot, exact primary scope, production dependencies, and supporting-only paths.
-2. Enumerate assets, roles, external systems, and permissionless state-changing entrypoints once.
-3. Classify tests, mocks, handlers, harnesses, and deployment scripts as supporting context. Never admit them into default production paths.
-4. Batch by connected subsystem; do not create one task per function.
+2. Classify tests, mocks, handlers, harnesses, and deployment scripts as supporting context.
+3. Identify whether the user wants normal interactive hunting or explicit full-audit coverage.
 
-**Exit:** The map target and bounded batches are explicit.
+**Exit:** Scope, baseline, support-only paths, and recon depth are explicit.
 
-## Phase 2: Build Deterministic Facts
+## Phase 2: Basic Global Recon
 
-**Entry:** Scope is fresh.
+1. Understand architecture, actors, assets, money/value flow, integrations, major lifecycles, documented behavior, and important invariants.
+2. Enumerate the most important permissionless/state-changing surfaces enough to propose meaningful research.
+3. Create or refine the protocol profile and relevant impact goals.
+4. Store material unknowns as `UNKNOWN`; ask the user only when intended behavior matters and cannot be established from code/docs.
+
+**Exit:** Hunt can propose one niche invariant or `ACTIVE` job without claiming the whole repository graph is complete.
+
+## Phase 3: Deep Local Recon
+
+**Entry:** An `ACTIVE` job, subsystem, function, state variable, integration, invariant, or impact is selected.
 
 1. Compile the pinned baseline when feasible and use compiler AST/build artifacts for declarations, overloads, modifiers, source spans, and resolvable calls.
 2. Give every invocation its own call-site identity, including repeated and nested calls on the same line.
-3. For each call site, record caller, declared callee, dispatch kind, enclosing condition, exact positional or named argument expression, callee parameter binding, argument origin IDs, and return use.
-4. Represent modifiers and modifier arguments as reachable call steps. Account for `using for` implicit receivers, tuple returns, callbacks, hooks, and internal, external, library, super, virtual, interface, low-level, delegate, static, and dynamic dispatch.
-5. Record possible runtime targets separately from the compiler-declared target. Keep compiler candidates distinct from proxy, beacon, diamond, code-hash, or configured-address targets confirmed by live evidence.
-6. Mark mechanically proven facts `VERIFIED`, semantic/economic interpretations and possible runtime targets `INFERRED`, and unresolved dispatch or assembly `UNKNOWN`.
+3. For relevant call sites, record caller, declared callee, dispatch kind, condition, argument expression, callee parameter binding, argument origin IDs, and return use.
+4. Represent modifiers, `using for`, tuple returns, callbacks, hooks, internal/external/library/super/virtual/interface/low-level/delegate/static/dynamic dispatch, and runtime target candidates when relevant to the job.
+5. Mark mechanically proven facts `VERIFIED`, semantic/economic interpretations and possible runtime targets `INFERRED`, and unresolved dispatch or assembly `UNKNOWN`.
 
-**Exit:** Any scoped entrypoint can be queried for exact direct call sites, argument bindings, return use, runtime candidates, conditions, and source evidence without first reading its full transitive source tree.
+**Exit:** The active job's selected surface can be queried for exact local graph/context without loading the whole repository.
 
-## Phase 3: Map Direct And Effective Effects
+## Phase 4: Direct And Effective Effects
 
-**Entry:** Call-site and binding coverage exists.
+1. Prove persistent writes from state-variable or `storage` roots; do not classify struct-field member access as storage without proving its root.
+2. Cover relevant assignment, compound assignment, increment, decrement, delete, mapping/array/nested-struct mutation, push, pop, and provable Yul/assembly writes.
+3. Separate persistent state, semantic token effects, and external-protocol effects.
+4. Compute bounded cycle-safe paths from relevant entrypoints to reachable effects.
 
-1. Prove persistent writes from lvalues rooted in state variables or `storage` references. Do not classify a struct-field `MemberAccess` as storage without proving its root.
-2. Cover assignment, compound assignment, increment, decrement, delete, mapping/array/nested-struct mutation, push, pop, and mechanically provable Yul or assembly writes.
-3. Exclude memory and calldata mutations from persistent effects. Record ambiguous storage aliases or assembly effects as `UNKNOWN`.
-4. Separate local persistent state from semantic token effects such as transfer, approve, mint, and burn, and from external-protocol effects such as deposit, withdraw, borrow, repay, liquidate, redeem, and callback.
-5. From every state-changing entrypoint, compute the deterministic shortest cycle-safe path to each reachable effect. Bound depth and record the complete ordered call-site path, conditions, leaf function, status, and confidence.
+**Exit:** The active job can query direct/effective effects by entrypoint and affected state.
 
-**Exit:** Direct and transitive persistent, token, and external-protocol effects are queryable by entrypoint and by affected state.
+## Phase 5: Security Views
 
-## Phase 4: Build Security Views
+1. Map authorization, asset flow, state mutation, lifecycle, callbacks, external dependencies, and invariants for the selected surface.
+2. Link active jobs to relevant impacts, invariants, graph nodes, assumptions, observations, hypotheses, known findings, and live evidence where useful.
+3. Refine only material impact goals into `READY` status.
 
-**Entry:** Deterministic facts exist.
+**Exit:** The selected job has enough evidence to hunt or a bounded repair queue.
 
-1. Map authorization, asset flow, state mutation, lifecycle, callbacks, external dependencies, and invariants.
-2. Create protocol profile and draft impact seeds for all applicable archetypes.
-3. Refine the most material impacts into protocol-specific `READY` goals.
+## Phase 6: Gates
 
-**Exit:** The map explains who can change protected state, how value moves, and which decisions could produce meaningful bad states.
+For normal interactive HUNT:
 
-## Phase 5: RECON Gate
+1. Run `lint`, `stale`, and bounded orphan checks for the relevant records.
+2. Confirm relevant calls, parameter bindings, return use, direct effects, effective paths, unresolved dispatch, and assumptions are represented.
+3. Let local `UNKNOWN`s block or shape the active job; do not block the whole audit unless the missing fact is globally material.
 
-**Entry:** Selected views are populated.
+For explicit full-audit mode:
 
-1. Run `lint`, `stale`, and bounded orphan searches; confirm search indexes return newly recorded graph facts.
-2. Confirm every scoped state-changing entrypoint has an explicit extraction-coverage record, even when it has zero calls or zero persistent effects.
-3. Confirm resolvable calls have complete parameter bindings and every returned component is classified as assigned, tuple-bound, ignored, returned, or consumed.
-4. Confirm persistent effects have proven roots and every reachable effect has a bounded effective path.
-5. Confirm high-risk unresolved calls and assembly are stored as `UNKNOWN` with a concrete next check.
-6. Reject dangling relationships, unsupported `VERIFIED` records, stale evidence, dirty or unpinned extraction, and production paths containing tests, mocks, handlers, harnesses, or scripts.
-7. Report scoped-function coverage, state-changing-entrypoint coverage, call resolution, argument binding, return-use coverage, direct/effective-effect coverage, unresolved calls, production contamination, dangling edges, and verified records lacking evidence.
+1. Confirm every scoped state-changing entrypoint has extraction coverage, including zero-call or zero-effect records.
+2. Confirm resolvable calls, parameter bindings, return-use, direct/effective-effect coverage, unresolved calls, production contamination checks, dangling edges, and verified evidence support across the full pinned scope.
 
-**Exit:** The gate passes for the pinned scope, or HUNT remains blocked with an explicit bounded repair queue. Unknowns may remain only when represented, evidenced, and ranked rather than silently omitted.
+**Exit:** Interactive HUNT starts after sufficient broad context and deep local coverage for the active job. Full-audit HUNT waits for the broader gate.

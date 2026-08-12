@@ -277,6 +277,215 @@ class AuditCtlTests(unittest.TestCase):
             any(candidate["record_id"] == "HYP-REVIVE" for candidate in context["affected_candidates"])
         )
 
+    def test_research_packet_prefers_explicit_links_and_excludes_unrelated_context(self) -> None:
+        self.setup_store()
+        invariant_id = "invariant:falconx-nav"
+        impact_id = "impact:falconx-nav-rebalance"
+        function_id = "function:src/Vault.sol:Vault.deposit()"
+        linked_context = "fact:user-context:falconx-async"
+        unrelated_context = "fact:user-context:governance-delay"
+        self.run_cli(
+            "invariant-upsert",
+            "--id",
+            invariant_id,
+            "--title",
+            "Fresh NAV",
+            "--statement",
+            "Rebalance decisions use fresh NAV.",
+        )
+        self.run_cli(
+            "impact-upsert",
+            "--id",
+            impact_id,
+            "--archetype",
+            "vault",
+            "--title",
+            "Stale NAV rebalance",
+            "--invariant-id",
+            invariant_id,
+            "--protocol-case",
+            "FalconX NAV feeds rebalance accounting.",
+            "--decision-point",
+            "rebalance NAV read",
+            "--bad-state",
+            "rebalance consumes stale NAV",
+            "--attacker-goal",
+            "increase leverage against stale value",
+            "--candidate-primitive",
+            function_id,
+            "--status",
+            "READY",
+        )
+        self.run_cli(
+            "node-upsert",
+            "--id",
+            function_id,
+            "--kind",
+            "function",
+            "--name",
+            "deposit",
+        )
+        self.run_cli(
+            "context-add",
+            "--id",
+            linked_context,
+            "--statement",
+            "FalconX NAV updates asynchronously.",
+        )
+        self.run_cli(
+            "context-add",
+            "--id",
+            unrelated_context,
+            "--statement",
+            "Governance timelock is two days.",
+        )
+        self.run_cli(
+            "job-upsert",
+            "--id",
+            "JOB-LINKED",
+            "--goal",
+            "Can FalconX stale NAV affect rebalance?",
+            "--status",
+            "ACTIVE",
+        )
+        for record_id in (impact_id, function_id, linked_context):
+            self.run_cli(
+                "relation-upsert",
+                "--src",
+                "JOB-LINKED",
+                "--type",
+                "FOCUSES_ON",
+                "--dst",
+                record_id,
+                "--status",
+                "INFERRED",
+            )
+        packet = self.run_cli("research-packet", "JOB-LINKED")
+        self.assertFalse(packet["bounds"]["fts_fallback_used"])
+        self.assertEqual(packet["linked"]["impact_goals"][0]["id"], impact_id)
+        self.assertEqual(packet["linked"]["invariants"][0]["id"], invariant_id)
+        linked_fact_ids = {row["id"] for row in packet["linked"]["facts"]}
+        self.assertIn(linked_context, linked_fact_ids)
+        self.assertNotIn(unrelated_context, linked_fact_ids)
+
+    def test_context_revives_parked_job_and_avoids_unrelated_false_positive(self) -> None:
+        self.setup_store()
+        self.run_cli(
+            "job-upsert",
+            "--id",
+            "JOB-044",
+            "--goal",
+            "Check FalconX NAV during rebalance",
+            "--status",
+            "PARKED",
+            "--result",
+            "Blocked because FalconX NAV is synchronous.",
+        )
+        self.run_cli(
+            "relation-upsert",
+            "--src",
+            "external:falconx",
+            "--type",
+            "REVIVES",
+            "--dst",
+            "JOB-044",
+            "--status",
+            "INFERRED",
+        )
+        revived = self.run_cli(
+            "context-add",
+            "--statement",
+            "FalconX NAV updates asynchronously.",
+        )
+        self.assertTrue(any(candidate["record_id"] == "JOB-044" for candidate in revived["affected_candidates"]))
+        unrelated = self.run_cli(
+            "context-add",
+            "--statement",
+            "Governance timelock is two days.",
+        )
+        self.assertFalse(
+            any(candidate["record_id"] == "JOB-044" for candidate in unrelated["affected_candidates"])
+        )
+
+    def test_state_probe_provenance_and_observation_separation(self) -> None:
+        self.setup_store()
+        self.run_cli(
+            "job-upsert",
+            "--id",
+            "JOB-PROBE",
+            "--goal",
+            "Compare split deposit accounting",
+            "--status",
+            "ACTIVE",
+        )
+        unexecuted = self.run_cli(
+            "probe-add",
+            "--job-id",
+            "JOB-PROBE",
+            "--setup",
+            "planned unit test",
+            "--sequence",
+            "deposit(40); deposit(60)",
+            "--result",
+            "agent has not run this yet",
+        )
+        self.assertEqual(unexecuted["status"], "INFERRED")
+        failed = self.run_cli(
+            "probe-add",
+            "--job-id",
+            "JOB-PROBE",
+            "--setup",
+            "planned unit test",
+            "--sequence",
+            "deposit(100)",
+            "--result",
+            "claimed verified without execution",
+            "--status",
+            "VERIFIED",
+            expected=2,
+        )
+        self.assertIn("VERIFIED state probes require --executed", failed["error"])
+        executed = self.run_cli(
+            "probe-add",
+            "--job-id",
+            "JOB-PROBE",
+            "--setup",
+            "Fixture vault",
+            "--sequence",
+            "deposit(100) vs deposit(40); deposit(60)",
+            "--state-before",
+            "shares=0 assets=0",
+            "--state-after",
+            "shares differ",
+            "--result",
+            "focused test executed",
+            "--status",
+            "VERIFIED",
+            "--executed",
+            "--harness",
+            "test/Vault.t.sol::testSplitDeposit",
+            "--observation",
+            "Split deposits produce a different final share count.",
+        )
+        self.assertEqual(executed["status"], "VERIFIED")
+        packet = self.run_cli("research-packet", "JOB-PROBE")
+        kinds = {row["kind"] for row in packet["job_facts"]}
+        self.assertIn("STATE_PROBE", kinds)
+        self.assertIn("OBSERVATION", kinds)
+
+    def test_hunt_and_recon_docs_preserve_user_boundary_and_local_recon(self) -> None:
+        hunt = (SKILL_ROOT / "workflows" / "hunt.md").read_text(encoding="utf-8")
+        recon = (SKILL_ROOT / "workflows" / "recon.md").read_text(encoding="utf-8")
+        self.assertIn("one meaningful `ACTIVE` job", hunt)
+        self.assertIn("Forbidden state", hunt)
+        self.assertIn("Sensitive consumer", hunt)
+        self.assertIn("Trace backward from impact", hunt)
+        self.assertIn("Trace forward from attacker", hunt)
+        self.assertIn("economic reality vs protocol representation", hunt)
+        self.assertIn("stop for human steering", hunt)
+        self.assertIn("Basic Global Recon", recon)
+        self.assertIn("Deep Local Recon", recon)
+
     def test_novelty_requires_all_sources(self) -> None:
         self.setup_store()
         invariant_id = "invariant:fixture"

@@ -46,6 +46,8 @@ python3 "$AUDITCTL" stale --repo .
 python3 "$AUDITCTL" lint --repo .
 ```
 
+`research-packet` follows explicit `relations` linked to the job first, then falls back to bounded FTS when no links exist.
+
 ## Research Jobs And User Context
 
 ```bash
@@ -60,7 +62,7 @@ python3 "$AUDITCTL" probe-add --repo . --job-id JOB-001 \
   --state-before "claim=100 settled=40" --state-after "claim=?" --result "record observed state"
 ```
 
-Keep only one `ACTIVE` job. User context starts as `UNKNOWN` unless independently verified.
+Keep only one `ACTIVE` job. User context starts as `UNKNOWN` unless independently verified. A probe is `INFERRED` by default; use `--executed --status VERIFIED --harness <test-or-trace>` only after actually running it.
 
 ## Novelty And Live Evidence
 
