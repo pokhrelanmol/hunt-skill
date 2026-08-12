@@ -23,11 +23,13 @@ RECON has two depths: basic global context for normal interactive hunting, and d
 
 **Entry:** An `ACTIVE` job, subsystem, function, state variable, integration, invariant, or impact is selected.
 
-1. Compile the pinned baseline when feasible and use compiler AST/build artifacts for declarations, overloads, modifiers, source spans, and resolvable calls.
-2. Give every invocation its own call-site identity, including repeated and nested calls on the same line.
-3. For relevant call sites, record caller, declared callee, dispatch kind, condition, argument expression, callee parameter binding, argument origin IDs, and return use.
-4. Represent modifiers, `using for`, tuple returns, callbacks, hooks, internal/external/library/super/virtual/interface/low-level/delegate/static/dynamic dispatch, and runtime target candidates when relevant to the job.
-5. Mark mechanically proven facts `VERIFIED`, semantic/economic interpretations and possible runtime targets `INFERRED`, and unresolved dispatch or assembly `UNKNOWN`.
+1. Build the graph to be useful for the selected impact/job, not merely present. The graph must support real queries such as "which attacker entrypoints can reach this sensitive consumer?", "which state does this decision trust?", "who writes that state?", and "which later operation consumes the changed representation?"
+2. Compile the pinned baseline when feasible and use compiler AST/build artifacts for declarations, overloads, modifiers, source spans, and resolvable calls.
+3. Create nodes for relevant contracts, external/public functions, internal functions, modifiers, storage/state roots, roles, assets, lifecycle states, external systems, tests/harness anchors, invariants, impacts, and the `ACTIVE` job.
+4. Give every invocation its own call-site identity, including repeated and nested calls on the same line.
+5. For relevant call sites, record caller, declared callee, dispatch kind, condition, argument expression, callee parameter binding, argument origin IDs, and return use.
+6. Represent modifiers, `using for`, tuple returns, callbacks, hooks, internal/external/library/super/virtual/interface/low-level/delegate/static/dynamic dispatch, and runtime target candidates when relevant to the job.
+7. Mark mechanically proven facts `VERIFIED`, semantic/economic interpretations and possible runtime targets `INFERRED`, and unresolved dispatch or assembly `UNKNOWN`.
 
 **Exit:** The active job's selected surface can be queried for exact local graph/context without loading the whole repository.
 
@@ -43,22 +45,27 @@ RECON has two depths: basic global context for normal interactive hunting, and d
 ## Phase 5: Security Views
 
 1. Map authorization, asset flow, state mutation, lifecycle, callbacks, external dependencies, and invariants for the selected surface.
-2. Link active jobs to relevant impacts, invariants, graph nodes, assumptions, observations, hypotheses, known findings, and live evidence where useful.
+2. Link active jobs to relevant impacts, invariants, sensitive consumers, attacker entrypoints, state roots, effect paths, assumptions, observations, hypotheses, known findings, and live evidence where useful.
 3. Refine only material impact goals into `READY` status.
 
 **Exit:** The selected job has enough evidence to hunt or a bounded repair queue.
 
 ## Phase 6: Gates
 
+The graph gate is a hard blocker. Do not advance into HUNT/FULL_AUDIT job execution with placeholder nodes, orphan records, or graph entries that do not answer the active impact's reachability/effect questions.
+
 For normal interactive HUNT:
 
 1. Run `lint`, `stale`, and bounded orphan checks for the relevant records.
-2. Confirm relevant calls, parameter bindings, return use, direct effects, effective paths, unresolved dispatch, and assumptions are represented.
-3. Let local `UNKNOWN`s block or shape the active job; do not block the whole audit unless the missing fact is globally material.
+2. Confirm the `ACTIVE` job is linked to at least one concrete impact/invariant, one sensitive consumer or state root, and the relevant attacker-accessible entrypoint or explicit `UNKNOWN`.
+3. Confirm relevant calls, parameter bindings, return use, direct effects, effective paths, unresolved dispatch, and assumptions are represented.
+4. Confirm graph queries can retrieve a backward path from sensitive consumer to trusted state/source and a forward path from attacker-accessible action to relevant mutation/effect, or store the missing segment as `UNKNOWN` with the next extraction step.
+5. Let local `UNKNOWN`s block or shape the active job; do not block the whole audit unless the missing fact is globally material.
 
 For explicit full-audit mode:
 
 1. Confirm every scoped state-changing entrypoint has extraction coverage, including zero-call or zero-effect records.
 2. Confirm resolvable calls, parameter bindings, return-use, direct/effective-effect coverage, unresolved calls, production contamination checks, dangling edges, and verified evidence support across the full pinned scope.
+3. Confirm each agenda job has enough graph links to be hunted with `research-packet`; jobs without links stay `NEXT`/`BLOCKED` and trigger more RECON, not source-only hunting.
 
 **Exit:** Interactive HUNT starts after sufficient broad context and deep local coverage for the active job. Full-audit HUNT waits for the broader gate.

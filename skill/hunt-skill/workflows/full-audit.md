@@ -31,6 +31,8 @@ Map enough of the pinned scope to identify:
 
 Use [recon.md](recon.md) for deterministic mapping and repair silent coverage gaps that would prevent agenda construction.
 
+Do not build the agenda from informal source-reading notes alone. FULL AUDIT must create detailed graph records for the scoped audit surface: entrypoints, important internal functions, storage/state roots, roles/assets, external systems, call edges, read/write/effect edges, sensitive consumers, and invariant/impact links. If the graph is too thin to explain why a job exists or how it reaches a sensitive decision, keep building RECON instead of moving into HUNT.
+
 ## Build The Audit Agenda
 
 Create concrete `JOB` rows from combinations of:
@@ -41,6 +43,8 @@ Create concrete `JOB` rows from combinations of:
 - important coupled state;
 - external dependencies;
 - attacker-accessible surfaces.
+
+Each agenda job must be linked to graph records before it becomes `ACTIVE`: the impact/invariant, the sensitive consumer or state root, relevant attacker entrypoint or explicit `UNKNOWN`, and any known external dependency. A job without these links is not ready for hunting; leave it `NEXT` or `BLOCKED` with the missing graph work.
 
 Do not create generic category jobs such as "find reentrancy" or "find rounding bugs". Shape jobs as impact questions, for example:
 

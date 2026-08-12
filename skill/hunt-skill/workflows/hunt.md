@@ -8,6 +8,8 @@ For normal interactive hunting, require broad protocol context from RECON: scope
 
 For the `ACTIVE` job, require deep local graph/context coverage for the relevant subsystem, function, state, integration, or impact. If local call/effect/argument coverage is stale or missing, deepen RECON only for that surface.
 
+Do not start from memory of source files alone. Before the Combined Impact Loop, the agent must create and query a useful graph packet for the `ACTIVE` job. The packet should include relevant impact/invariant links, attacker entrypoints or explicit `UNKNOWN`, sensitive consumers, state roots, call edges, read/write/effect edges, external integrations, and source/evidence anchors. If `research-packet`, `neighbors`, or `path` cannot retrieve these relationships, return to RECON and build the missing graph records.
+
 ## Active Job Frame
 
 Before tracing, make the job precise:
@@ -20,7 +22,7 @@ Before tracing, make the job precise:
 
 ## Combined Impact Loop
 
-1. Load the bounded `research-packet` for the `ACTIVE` job.
+1. Load the bounded `research-packet` for the `ACTIVE` job. If it is empty, superficial, or not linked to concrete graph records, stop and repair the graph before hunting.
 2. Trace backward from impact: sensitive consumer -> bad input -> state representation -> state source -> mutation path -> possible attacker primitive.
 3. Trace forward from attacker: callable/actionable primitive -> state mutation -> bad representation -> sensitive consumer -> forbidden state -> impact.
 4. Use selected dimensions together around this same forbidden state:

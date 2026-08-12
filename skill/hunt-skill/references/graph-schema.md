@@ -50,6 +50,16 @@ Persist the current audit driver in `meta.hunt_mode` as `NORMAL_HUNT` or `FULL_A
 
 ## Required RECON Records
 
+The graph must be query-useful, not ceremonial. Do not create a few placeholder nodes and proceed. For the active job, the graph should let a later agent answer:
+
+- which attacker-accessible entrypoints can touch the selected impact;
+- which sensitive consumer makes the bad state matter;
+- which state roots, cached values, balances, shares, debts, roles, prices, or lifecycle flags feed that consumer;
+- which functions write or derive those values;
+- which external systems are trusted;
+- which path connects an attacker action to the local/external state and then to the sensitive consumer;
+- which exact source/evidence anchors support or limit each edge.
+
 For every scoped function, retain compact queryable facts for:
 
 - canonical parameters: position, name, type, storage location, source span, and compiler node ID;
@@ -62,6 +72,19 @@ For every scoped function, retain compact queryable facts for:
 - extraction coverage: explicit complete, incomplete, zero-call, or zero-effect disposition for each scoped function.
 
 If the available deterministic tooling cannot populate a field, store the missing fact as `UNKNOWN` with the exact next check. Never fill a mechanical field from model intuition and label it `VERIFIED`.
+
+## Graph Usefulness Gate
+
+Before HUNT or FULL_AUDIT job execution, query the graph. A useful active-job graph has:
+
+- `JOB` linked to the impact/invariant being tested;
+- graph nodes for relevant attacker entrypoints, sensitive consumers, state roots, roles/assets, and external dependencies;
+- `CALLS`/dispatch edges for relevant local paths;
+- `READS`, `WRITES`, `DERIVES_FROM`, `TRANSFERS`, `MINTS`, `BURNS`, `DEPOSITS`, `WITHDRAWS`, `BORROWS`, `REPAYS`, `LIQUIDATES`, or namespaced effect edges as applicable;
+- evidence on verified graph edges;
+- explicit `UNKNOWN` records for unresolved dispatch, missing build artifacts, assembly, dynamic targets, or unverified external behavior.
+
+If the graph cannot support a backward trace from sensitive consumer to trusted state/source and a forward trace from attacker entrypoint to mutation/effect, do not hunt yet. Build the missing graph records first.
 
 ## Statuses
 

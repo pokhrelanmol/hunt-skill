@@ -4,6 +4,8 @@ Hunt Skill is a graph-based bug hunting skill for adversarial smart-contract aud
 
 It installs into a target audit repository and builds a project-local SQLite graph of contracts, functions, call sites, storage, effects, observations, hypotheses, evidence, and research jobs. Codex then uses that graph to hunt from impact backward to reachable attacker paths instead of reading the whole codebase as one giant notebook.
 
+Graph building is a real gate, not setup theater. Hunt is supposed to create a detailed, queryable graph for the active impact before hunting: attacker entrypoints, sensitive consumers, state roots, call edges, read/write/effect edges, external dependencies, and evidence anchors. If the graph cannot explain how the impact could be reached, the agent should keep mapping instead of guessing from source-reading memory.
+
 The skill is designed to be installed into each audit repository under `.agents/skills/hunt-skill`. Every project keeps its own `.audit/graph/audit.db`, scope snapshot, hypotheses, evidence, novelty checks, observations, and proof handoff state.
 
 For installation, upgrades, scope setup, and troubleshooting, use [docs/SETUP.md](docs/SETUP.md). This README explains what the skill is and how the hunting loop works.
