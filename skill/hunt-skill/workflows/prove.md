@@ -1,14 +1,14 @@
 # PROVE Workflow
 
-## Phase 1: Enforce Human Gate
+## Phase 1: Enforce Handoff Gate
 
-**Entry:** The user has manually reviewed a `CODE_VALIDATED` hypothesis.
+**Entry:** A hypothesis is `CODE_VALIDATED`.
 
-1. Run `poc-gate` immediately before touching any proof file.
-2. If it fails, stop and report whether approval, claim freshness, or source freshness is missing.
-3. Never run `approve-poc` unless the user explicitly instructs Codex to record their completed manual approval.
+1. Run `poc-handoff` before touching any proof file.
+2. If it fails, stop and report the single missing item: configured PoC skill, source freshness, or proof environment/context.
+3. Read the configured dedicated PoC skill's `SKILL.md` and follow its proof methodology; do not duplicate that methodology here.
 
-**Exit:** A current human approval is bound to the claim and source snapshot.
+**Exit:** Proof work is delegated to the configured PoC method for the current claim and source snapshot.
 
 ## Phase 2: Choose Smallest Decisive Proof
 
@@ -37,7 +37,8 @@
 **Entry:** Proof result is stable.
 
 1. Run `novelty-gate` and `report-gate`.
-2. Report only when impact, exploitability, proof, and novelty pass.
-3. Otherwise demote or reject and preserve why.
+2. Mark `POC_VALIDATED` only when the proof demonstrates the broken property; mark `POC_BLOCKED` for missing environment, or reject/demote when proof kills the claim.
+3. Report only when impact, exploitability, proof, and novelty pass.
+4. Otherwise demote or reject and preserve why.
 
 **Exit:** A concise report or a precise rejection is available.

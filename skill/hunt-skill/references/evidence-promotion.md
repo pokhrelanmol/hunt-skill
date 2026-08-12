@@ -1,4 +1,4 @@
-# Evidence, Promotion, And Human Gates
+# Evidence, Promotion, And Proof Handoff
 
 ## Code-Validation Gate
 
@@ -31,17 +31,16 @@ Before reporting, record checks for:
 
 Any `KNOWN` or `DUPLICATE` overlap blocks reporting until the distinction is explicit. `UNCLEAR` remains blocked. Historical similarity never proves the local issue.
 
-## Human PoC Gate
+## Automatic PoC Handoff
 
 PoC work requires all of the following:
 
 1. Hypothesis status is `CODE_VALIDATED`.
-2. The user manually reviews and validates the allegation.
-3. The user runs `approve-poc` interactively, or explicitly asks Codex to record that approval after review.
-4. The approval matches the current hypothesis claim hash.
-5. The approval matches the current in-scope source hash.
+2. The current source scope is fresh.
+3. A dedicated PoC skill path is configured with `poc-config`.
+4. The configured PoC skill path contains `SKILL.md`.
 
-Codex must not invoke `approve-poc` merely because the user liked the idea or asked to continue. Run `poc-gate` immediately before creating or changing any proof file. A source or claim change invalidates the approval.
+Run `poc-handoff` immediately before creating or changing any proof file. If it fails, ask only for the missing proof input: PoC skill path, source refresh, RPC/fork environment, deployed address, or other material context. The PoC can validate the hypothesis, block on environment, or kill the hypothesis.
 
 ## Report Gate
 

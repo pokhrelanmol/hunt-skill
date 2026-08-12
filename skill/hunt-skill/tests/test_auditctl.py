@@ -123,8 +123,14 @@ class AuditCtlTests(unittest.TestCase):
         neighbors = self.run_cli("neighbors", function_id)
         self.assertEqual(neighbors["relations"][0]["id"], relation["id"])
 
-    def test_human_poc_gate_binds_claim_and_scope(self) -> None:
+    def test_automatic_poc_handoff_binds_claim_and_scope(self) -> None:
         self.setup_store()
+        poc_skill = self.repo / ".agents" / "skills" / "poc"
+        poc_skill.mkdir(parents=True)
+        (poc_skill / "SKILL.md").write_text(
+            "---\nname: poc\ndescription: fixture PoC skill\n---\n# PoC\n",
+            encoding="utf-8",
+        )
         invariant_id = "invariant:vault:share-accounting"
         impact_id = "impact:vault:fixture-share-dilution"
         self.run_cli(
@@ -178,24 +184,98 @@ class AuditCtlTests(unittest.TestCase):
             "--root-cause-key",
             "vault-totalassets-authority",
             "--next-check",
-            "manual review before proof",
+            "automatic PoC handoff",
         )
         blocked = self.run_cli("poc-gate", "HYP-001", expected=6)
-        self.assertIn("manual PoC approval missing", blocked["reasons"])
+        self.assertIn("dedicated PoC skill path not configured", blocked["reasons"])
 
-        sys.path.insert(0, str(SKILL_ROOT / "scripts"))
-        from huntlib.db import connect
-        from huntlib.gates import record_poc_approval
-
-        conn = connect(self.repo)
-        record_poc_approval(conn, self.repo, "HYP-001", "anmol", "manual fixture review")
-        conn.close()
-        self.assertTrue(self.run_cli("poc-gate", "HYP-001")["ok"])
+        self.assertTrue(self.run_cli("poc-config", "--path", str(poc_skill))["ok"])
+        handoff = self.run_cli("poc-handoff", "HYP-001")
+        self.assertTrue(handoff["ok"])
+        self.assertEqual(handoff["handoff"]["poc_skill_path"], str(poc_skill.resolve()))
 
         with (self.repo / "src" / "Vault.sol").open("a", encoding="utf-8") as handle:
             handle.write("// changed\n")
         stale = self.run_cli("poc-gate", "HYP-001", expected=6)
         self.assertIn("scoped source changed after the latest snapshot", stale["reasons"])
+
+    def test_jobs_context_observations_and_probes_reuse_existing_store(self) -> None:
+        self.setup_store()
+        job = self.run_cli(
+            "job-upsert",
+            "--id",
+            "JOB-001",
+            "--goal",
+            "Can partial settlement make cancellation restore too much collateral?",
+            "--status",
+            "ACTIVE",
+        )
+        self.assertEqual(job["status"], "ACTIVE")
+        self.run_cli(
+            "job-upsert",
+            "--id",
+            "JOB-002",
+            "--goal",
+            "Can FalconX NAV lag affect rebalance?",
+            "--status",
+            "ACTIVE",
+        )
+        packet = self.run_cli("research-packet", "JOB-001")
+        self.assertEqual(packet["job"]["status"], "NEXT")
+
+        self.run_cli(
+            "observation-add",
+            "--job-id",
+            "JOB-002",
+            "--statement",
+            "A 1 wei deposit changes totalAssets but not shares in the fixture.",
+            "--status",
+            "INFERRED",
+        )
+        self.run_cli(
+            "probe-add",
+            "--job-id",
+            "JOB-002",
+            "--setup",
+            "Fixture vault with empty supply",
+            "--sequence",
+            "deposit(1)",
+            "--state-before",
+            "totalAssets=0 shares=0",
+            "--state-after",
+            "totalAssets=1 shares=0",
+            "--result",
+            "No revert; accounting discontinuity observed",
+            "--harness",
+            "test/Vault.t.sol::testDepositOne",
+        )
+        packet = self.run_cli("research-packet", "JOB-002")
+        self.assertTrue(any(row["kind"] == "OBSERVATION" for row in packet["job_facts"]))
+        self.assertTrue(any(row["kind"] == "STATE_PROBE" for row in packet["job_facts"]))
+
+        self.run_cli(
+            "hypothesis-upsert",
+            "--id",
+            "HYP-REVIVE",
+            "--title",
+            "Partial settlement cancellation over-restores",
+            "--claim",
+            "Partial settlement can make cancellation restore too much collateral.",
+            "--rejection-reason",
+            "partial settlement is impossible",
+            "--reopen-condition",
+            "partial settlement is possible",
+            "--status",
+            "REJECTED",
+        )
+        context = self.run_cli(
+            "context-add",
+            "--statement",
+            "New docs say partial settlement is possible.",
+        )
+        self.assertTrue(
+            any(candidate["record_id"] == "HYP-REVIVE" for candidate in context["affected_candidates"])
+        )
 
     def test_novelty_requires_all_sources(self) -> None:
         self.setup_store()

@@ -93,7 +93,7 @@ python3 "$AUDITCTL" snapshot --repo "$PROJECT" \
   --scope-file .audit/SCOPE_FILES.txt
 ```
 
-The snapshot stores exact paths and SHA-256 hashes. Graph evidence and human PoC approvals become stale when scoped source changes.
+The snapshot stores exact paths and SHA-256 hashes. Graph evidence and PoC handoff readiness become stale when scoped source changes.
 
 ## 6. Create The Protocol Profile
 
@@ -135,23 +135,22 @@ Do not open the SQLite file as text or dump the entire graph into model context.
 
 Similarity never proves vulnerability.
 
-## 9. Human PoC Approval
+## 9. Automatic PoC Handoff
 
-Codex stops at `CODE_VALIDATED`. After manually reviewing the claim, the user runs:
-
-```bash
-python3 "$AUDITCTL" approve-poc --repo "$PROJECT" HYP-001 \
-  --approved-by "your-name" \
-  --note "Manually traced and approved for proof"
-```
-
-The command is interactive. Immediately before proof work, Codex must run:
+Configure the dedicated proof skill once:
 
 ```bash
-python3 "$AUDITCTL" poc-gate --repo "$PROJECT" HYP-001
+python3 "$AUDITCTL" poc-config --repo "$PROJECT" \
+  --path /absolute/path/to/poc-skill
 ```
 
-Changing the claim or scoped source invalidates approval.
+When a hypothesis reaches `CODE_VALIDATED`, Codex runs:
+
+```bash
+python3 "$AUDITCTL" poc-handoff --repo "$PROJECT" HYP-001
+```
+
+The handoff checks that the scope is fresh and the configured PoC skill contains `SKILL.md`. If proof needs missing environment data, such as an RPC endpoint or deployed address, Codex asks for that missing item.
 
 ## 10. Update Or Remove
 
@@ -185,6 +184,6 @@ Use a modern Python distribution built with SQLite JSON1 and FTS5. No separate S
 
 Stop concurrent writers and retry. Do not delete `audit.db-wal` or `audit.db-shm` while a process is active.
 
-### PoC approval is stale
+### PoC handoff is stale
 
-Review the changed claim/source, capture a fresh scope snapshot, and record a new manual approval.
+Review the changed source, capture a fresh scope snapshot, and rerun `poc-handoff`.

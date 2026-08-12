@@ -41,9 +41,26 @@ python3 "$AUDITCTL" search --repo . "cancel debt"
 python3 "$AUDITCTL" neighbors --repo . function:... --types CALLS,READS,WRITES --depth 1 --limit 30
 python3 "$AUDITCTL" path --repo . role:attacker asset:USDC --max-depth 3
 python3 "$AUDITCTL" context --repo . --goal "Can cancellation desync debt?" --limit 20
+python3 "$AUDITCTL" research-packet --repo . JOB-001 --limit 20
 python3 "$AUDITCTL" stale --repo .
 python3 "$AUDITCTL" lint --repo .
 ```
+
+## Research Jobs And User Context
+
+```bash
+python3 "$AUDITCTL" job-upsert --repo . --id JOB-001 \
+  --goal "Can partial settlement make cancellation restore too much collateral?" --status ACTIVE
+python3 "$AUDITCTL" context-add --repo . \
+  --statement "FalconX NAV updates asynchronously."
+python3 "$AUDITCTL" observation-add --repo . --job-id JOB-001 \
+  --statement "Cancellation restores a different value path than settlement."
+python3 "$AUDITCTL" probe-add --repo . --job-id JOB-001 \
+  --setup "focused unit test" --sequence "requestWithdraw -> settlePartial -> cancelWithdraw" \
+  --state-before "claim=100 settled=40" --state-after "claim=?" --result "record observed state"
+```
+
+Keep only one `ACTIVE` job. User context starts as `UNKNOWN` unless independently verified.
 
 ## Novelty And Live Evidence
 
@@ -55,21 +72,21 @@ python3 "$AUDITCTL" live-add --repo . --id LIVE-001 --source-tool tenderly --cha
   --address 0x... --claim "..." --status VERIFIED --retrieval-handle "simulation/fork id"
 ```
 
-## Human PoC Gate
+## Automatic PoC Handoff
 
-After code validation, Codex stops. The user reviews and runs:
-
-```bash
-python3 "$AUDITCTL" approve-poc --repo . HYP-001 --approved-by anmol --note "Manually traced and accepted for proof"
-```
-
-The command is interactive and requests an exact confirmation phrase. Codex checks immediately before proof work:
+Configure the dedicated proof skill once:
 
 ```bash
-python3 "$AUDITCTL" poc-gate --repo . HYP-001
+python3 "$AUDITCTL" poc-config --repo . --path /absolute/path/to/poc-skill
 ```
 
-Any claim or scoped source change makes the approval stale.
+After code validation, Codex checks and returns the proof handoff packet:
+
+```bash
+python3 "$AUDITCTL" poc-handoff --repo . HYP-001
+```
+
+If handoff fails, ask the user only for the missing proof input.
 
 ## Checkpoints
 

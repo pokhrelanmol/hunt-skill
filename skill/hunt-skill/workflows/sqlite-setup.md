@@ -54,5 +54,5 @@ sqlite3 .audit/graph/audit.db "select id,title,status from impact_goals limit 10
 - `python3: command not found`: install Python 3.11+ and rerun `doctor`.
 - `FTS5 unavailable`: use a Python build with SQLite FTS5; search cannot operate reliably without it.
 - `database is locked`: stop concurrent writers, retry, and inspect lingering `audit.db-wal`/`audit.db-shm`; do not delete them while a process is active.
-- stale approval: rerun manual validation after source changes and record a new approval.
+- stale PoC handoff: capture a fresh source snapshot and rerun `poc-handoff`.
 - stale graph rows: refresh their evidence against the current snapshot rather than deleting audit history.

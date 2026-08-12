@@ -25,8 +25,10 @@ python3 "${SKILL_ROOT}/scripts/auditctl.py" <command> --repo <target>
 8. Use historical pattern matching in two bounded modes: as fallback inspiration when code-led hunting stalls, and as validation/novelty screening for a concrete finding. A match creates a local question; it never proves the current protocol is vulnerable.
 9. Use bounded SQLite queries. Do not load the complete database, all checkpoints, or large Markdown notebooks into context.
 10. Use the installed Tenderly skill first for simulations, traces, forks, and state overrides. Use `cast` for narrow read-only facts. Pin chain, block, address, code hash when available, and observation time.
-11. Never create or modify a PoC until the user has manually validated the hypothesis and a current approval is recorded. Never invoke `approve-poc` on the user's behalf unless the user explicitly asks to record approval after their review.
+11. Once a hypothesis is `CODE_VALIDATED`, PoC work is part of the same research question: run `poc-handoff`, read the configured dedicated PoC skill's `SKILL.md`, and attempt the strongest practical proof. Ask the user only when the PoC environment or material data is missing.
 12. Do not modify production contracts during setup, reconnaissance, or indexing.
+13. Same research question means autonomous work; a new research direction requires explaining the recommendation and asking the user before switching.
+14. Treat user-provided protocol context as useful but unverified. Store it as `USER_CONTEXT`, link likely affected records, verify before relying on it, and check whether it changes active jobs, rejected hypotheses, or parked directions.
 
 ## Mode Router
 
@@ -36,7 +38,7 @@ python3 "${SKILL_ROOT}/scripts/auditctl.py" <command> --repo <target>
 | Architecture, relationships, value/state flow | `RECON` | [workflows/recon.md](workflows/recon.md) |
 | Concrete module, invariant, flow, or impact after RECON gate | `HUNT` | [workflows/hunt.md](workflows/hunt.md) |
 | One hypothesis requiring falsification | `VALIDATE` | [workflows/validate.md](workflows/validate.md) |
-| User-approved proof or final write-up | `PROVE` | [workflows/prove.md](workflows/prove.md) |
+| Automatic proof handoff or final write-up | `PROVE` | [workflows/prove.md](workflows/prove.md) |
 | Explicit repository-wide audit | `FULL AUDIT` | [workflows/full-audit.md](workflows/full-audit.md) |
 
 If intent is ambiguous, answer in `CHAT` and name the next discriminating check.
@@ -51,7 +53,9 @@ If intent is ambiguous, answer in `CHAT` and name the next discriminating check.
 2. Run `doctor`, `db-info`, and `stale` when the graph exists.
 3. Verify commit, dirty state, exact scope, exclusions, and prior-audit corpus before broad analysis.
 4. Initialize with [workflows/sqlite-setup.md](workflows/sqlite-setup.md) only when needed.
-5. If the requested mode is `HUNT`, run the [RECON workflow](workflows/recon.md) first unless its gate already passes for the current pinned scope.
+5. If this is a new audit, use existing RECON/profile/snapshot/graph mechanisms to establish architecture, actors, assets, value flow, lifecycles, integrations, intended behavior, and material invariants before hunting.
+6. Ask the user only for material missing context that docs/code cannot establish; record non-material unknowns as `UNKNOWN` and continue.
+7. If the requested mode is `HUNT`, run the [RECON workflow](workflows/recon.md) first unless its gate already passes for the current pinned scope.
 
 **Exit:** The active source snapshot and audit mode are explicit.
 
@@ -60,9 +64,10 @@ If intent is ambiguous, answer in `CHAT` and name the next discriminating check.
 **Entry:** Scope and question are explicit.
 
 1. Query `search`, `neighbors`, `path`, or `context` with small limits.
-2. For an entrypoint, retrieve exact call sites, parameter bindings, return use, runtime targets, direct effects, and shortest effective-effect paths before opening its transitive source tree.
-3. Load exact source spans only after graph results identify them.
-4. Refresh stale facts before relying on them.
+2. For active research, use `research-packet` or an equivalent bounded query around one `JOB`; do not reload the whole database or regenerate the protocol model.
+3. For an entrypoint, retrieve exact call sites, parameter bindings, return use, runtime targets, direct effects, and shortest effective-effect paths before opening its transitive source tree.
+4. Load exact source spans only after graph results identify them.
+5. Refresh stale facts before relying on them.
 
 **Exit:** The current question has a compact evidence bundle, unresolved assumptions, and exact code anchors.
 
@@ -71,11 +76,14 @@ If intent is ambiguous, answer in `CHAT` and name the next discriminating check.
 **Entry:** At least one local code anchor or impact goal exists.
 
 1. Establish the protected value/right and relevant invariant.
-2. Trace entrypoint -> guards -> reads -> calculations -> external effects -> writes -> later consumers.
-3. Alternate first-principles and state-consistency lenses.
-4. Inspect cross-function, cross-contract, cross-transaction, and external-protocol composition.
-5. For live-dependent claims, follow [references/live-investigation.md](references/live-investigation.md).
-6. If bounded code-led exploration produces no useful lead, run one impact-anchored historical pattern pass, convert matches into local hypotheses, and retrace them from current code.
+2. Present the highest-value niche invariant or research question to the user before starting a new direction.
+3. Trace entrypoint -> guards -> reads -> calculations -> external effects -> writes -> later consumers.
+4. Run focused exploratory state probes when tests/forks/harnesses are available; inspect meaningful before/after state, not only revert status.
+5. Store surprising-but-not-yet-buggy results as `OBSERVATION` or `STATE_PROBE`, linked to the current job.
+6. Alternate first-principles and state-consistency lenses.
+7. Inspect cross-function, cross-contract, cross-transaction, and external-protocol composition.
+8. For live-dependent claims, follow [references/live-investigation.md](references/live-investigation.md).
+9. If bounded code-led exploration produces no useful lead, run one impact-anchored historical pattern pass, convert matches into local hypotheses, and retrace them from current code.
 
 **Exit:** The idea is rejected, blocked with one missing fact, or represented as a linked hypothesis with a concrete next check.
 
@@ -85,10 +93,11 @@ If intent is ambiguous, answer in `CHAT` and name the next discriminating check.
 
 1. Apply [references/evidence-promotion.md](references/evidence-promotion.md).
 2. Record exact counterevidence and reopen conditions for rejected paths.
-3. Run historical novelty checks before reportability.
-4. Stop at `CODE_VALIDATED` and hand control to the user. Do not proceed to a PoC.
+3. When new context arrives, store/classify/link it and check whether it affects the active job, contradicts an assumption, revives a rejected hypothesis, revives a parked job, or kills the active direction. Recommend reopening; do not silently reopen.
+4. Run historical novelty checks before reportability.
+5. At `CODE_VALIDATED`, run `poc-handoff`; if the configured PoC skill or environment is missing, ask the user for that missing item.
 
-**Exit:** The hypothesis is rejected, remains a bounded lead, or awaits human proof approval.
+**Exit:** The hypothesis is rejected, remains a bounded lead, moves to proof, is PoC-blocked with one missing item, or reaches `POC_VALIDATED`.
 
 ### Phase 5: Checkpoint
 
@@ -107,7 +116,9 @@ If intent is ambiguous, answer in `CHAT` and name the next discriminating check.
 - "A known exploit looks similar." Similarity is inspiration, not evidence or novelty.
 - "No local lead means search every historical bug." Use one bounded fallback search anchored to this protocol's archetype, invariant, impact, or integration.
 - "Tenderly simulation succeeded." Separate vulnerable mechanics from attacker-created prerequisites.
-- "The user seemed convinced." Only an explicit, current approval unlocks PoC work.
+- "The user seemed convinced." CODE_VALIDATED requires evidence; PoC handoff still checks scope freshness and configured proof tooling.
+- "The user said it, so it is evidence." User context starts as `UNKNOWN` until independently verified.
+- "The current question is done, so start a new one." Recommend the next direction and wait for the user's steering.
 - "More Markdown is easier." Store detail in SQLite and retrieve only selected rows.
 
 ## Reference Index
@@ -115,7 +126,7 @@ If intent is ambiguous, answer in `CHAT` and name the next discriminating check.
 - [references/graph-schema.md](references/graph-schema.md): tables, IDs, statuses, and relationship vocabulary.
 - [references/impact-catalog.md](references/impact-catalog.md): protocol-specific impact construction and vault example.
 - [references/layered-hunting.md](references/layered-hunting.md): forward/backward composition method.
-- [references/evidence-promotion.md](references/evidence-promotion.md): validation, rejection, and human approval gates.
+- [references/evidence-promotion.md](references/evidence-promotion.md): validation, rejection, automatic proof handoff, and report gates.
 - [references/historical-research.md](references/historical-research.md): Solodit, similar audits, and hack-registry routing.
 - [references/live-investigation.md](references/live-investigation.md): Tenderly-first on-chain evidence policy.
 - [references/tool-routing.md](references/tool-routing.md): choose local tools and specialist skills from evidence.
@@ -132,4 +143,5 @@ If intent is ambiguous, answer in `CHAT` and name the next discriminating check.
 - Retrieval remains bounded to relevant rows and source spans.
 - Rejected paths preserve kill evidence and reopen conditions.
 - Novelty is checked before reporting.
-- PoC work remains blocked until explicit human approval bound to the current snapshot and claim.
+- User context, observations, state probes, active jobs, hypotheses, and rejections survive restart in the existing `.audit`/SQLite store.
+- `CODE_VALIDATED` automatically hands off to the configured dedicated PoC skill; reporting waits for proof validation and novelty.

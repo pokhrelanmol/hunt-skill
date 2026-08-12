@@ -64,15 +64,16 @@ Run this workflow only after an explicit broad-audit request.
 
 **Exit:** Survivors are `CODE_VALIDATED`; duplicates and failures are recorded.
 
-## Phase 7: Human Proof Gate
+## Phase 7: Automatic Proof Handoff
 
 **Entry:** At least one hypothesis is `CODE_VALIDATED`.
 
-1. Present each survivor to the user for manual validation.
-2. Stop all PoC work until its individual `poc-gate` passes.
-3. Build and verify only approved proofs.
+1. Present each survivor with the evidence bundle and current strongest blocker.
+2. Run `poc-handoff` for the selected survivor and follow the configured PoC skill.
+3. Ask the user only for missing proof environment or material context.
+4. Mark each survivor `POC_VALIDATED`, `POC_BLOCKED`, or `REJECTED` based on proof outcome.
 
-**Exit:** Each approved lead is confirmed or rejected by decisive evidence.
+**Exit:** Each selected lead is confirmed, blocked, or rejected by decisive evidence.
 
 ## Phase 8: Reporting And Checkpoint
 

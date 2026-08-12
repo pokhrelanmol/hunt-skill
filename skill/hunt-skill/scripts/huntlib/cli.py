@@ -41,11 +41,14 @@ HYPOTHESIS_STATUSES = {
     "LEAD",
     "INVESTIGATING",
     "CODE_VALIDATED",
+    "POC_VALIDATED",
+    "POC_BLOCKED",
     "MANUAL_VALIDATED",
     "CONFIRMED",
     "BLOCKED",
     "REJECTED",
 }
+JOB_STATUSES = {"ACTIVE", "NEXT", "PARKED", "DONE", "BLOCKED"}
 RELATION_TYPES = {
     "DECLARES",
     "INHERITS",
@@ -508,8 +511,8 @@ def cmd_hypothesis_upsert(args) -> None:
     existing = conn.execute("SELECT * FROM hypotheses WHERE id = ?", (args.id,)).fetchone()
     status_value = args.status if args.status is not None else (existing["status"] if existing else "LEAD")
     status = require_status(status_value, HYPOTHESIS_STATUSES, "hypothesis status")
-    if status in {"MANUAL_VALIDATED", "CONFIRMED"}:
-        raise ValueError("use approve-poc for MANUAL_VALIDATED and hypothesis-status for gated CONFIRMED")
+    if status in {"MANUAL_VALIDATED", "POC_VALIDATED", "CONFIRMED"}:
+        raise ValueError("use hypothesis-status for gated proof/report transitions")
 
     def choose(name: str, default: Any = "") -> Any:
         value = getattr(args, name)
@@ -583,6 +586,8 @@ def cmd_hypothesis_status(args) -> None:
         raise ValueError("MANUAL_VALIDATED is user-gated; run approve-poc interactively")
     if status == "REJECTED" and (not args.reason or not args.reopen_condition):
         raise ValueError("REJECTED requires --reason and --reopen-condition")
+    if status == "POC_BLOCKED" and not args.reason:
+        raise ValueError("POC_BLOCKED requires --reason")
     if status == "CODE_VALIDATED":
         required = {
             "attacker_capability": row["attacker_capability"],
@@ -593,13 +598,14 @@ def cmd_hypothesis_status(args) -> None:
         missing = [key for key, value in required.items() if not value]
         if missing:
             raise ValueError(f"CODE_VALIDATED missing fields: {', '.join(missing)}")
-    if status == "CONFIRMED":
+    if status == "POC_VALIDATED":
         current_poc = poc_gate(conn, repo, args.id)
-        current_novelty = novelty_gate(conn, args.id)
         if not current_poc["ok"]:
-            raise ValueError("cannot confirm: PoC/manual validation gate failed")
-        if not current_novelty["ok"]:
-            raise ValueError("cannot confirm: novelty gate failed")
+            raise ValueError("cannot mark POC_VALIDATED: PoC handoff gate failed")
+    if status == "CONFIRMED":
+        current_report = report_gate(conn, repo, args.id)
+        if not current_report["ok"]:
+            raise ValueError("cannot confirm: report gate failed")
     conn.execute(
         "UPDATE hypotheses SET status=?, rejection_reason=?, reopen_condition=?, updated_at=? WHERE id=?",
         (
@@ -870,6 +876,182 @@ def cmd_context(args) -> None:
     )
 
 
+def stable_id(prefix: str, text: str) -> str:
+    digest = hashlib.sha256(text.strip().encode()).hexdigest()[:16]
+    return f"{prefix}:{digest}"
+
+
+def related_candidates(conn, text: str, limit: int = 10) -> list[dict[str, Any]]:
+    try:
+        hits = search_rows(conn, text, limit)
+    except ValueError:
+        hits = []
+    tokens = [token.lower() for token in re.findall(r"[A-Za-z0-9_]{4,}", text)[:8]]
+    if tokens:
+        clauses = " OR ".join(
+            "(lower(rejection_reason) LIKE ? OR lower(reopen_condition) LIKE ?)" for _ in tokens
+        )
+        params: list[Any] = []
+        for token in tokens:
+            like = f"%{token}%"
+            params.extend([like, like])
+        rows = conn.execute(
+            "SELECT 'hypotheses' AS record_type, id AS record_id, "
+            "'rejection/reopen text may be affected' AS snippet FROM hypotheses "
+            f"WHERE status = 'REJECTED' AND ({clauses}) ORDER BY updated_at DESC LIMIT ?",
+            (*params, limit),
+        ).fetchall()
+        hits.extend(as_dicts(rows))
+    seen = set()
+    unique = []
+    for hit in hits:
+        key = (hit["record_type"], hit["record_id"])
+        if key not in seen:
+            seen.add(key)
+            unique.append(hit)
+    return unique[:limit]
+
+
+def cmd_context_add(args) -> None:
+    repo = repo_path(args)
+    conn = connect(repo)
+    status = require_status(args.status, EVIDENCE_STATUSES, "evidence status")
+    fact_id = args.id or stable_id("fact:user-context", args.statement)
+    now = utcnow()
+    conn.execute(
+        "INSERT INTO facts(id, subject_id, kind, statement, status, confidence, created_at, updated_at) "
+        "VALUES(?, ?, 'USER_CONTEXT', ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET "
+        "subject_id=excluded.subject_id, statement=excluded.statement, status=excluded.status, "
+        "confidence=excluded.confidence, updated_at=excluded.updated_at",
+        (fact_id, args.subject_id, args.statement, status, args.confidence, now, now),
+    )
+    conn.execute(
+        "INSERT INTO evidence(record_type, record_id, source_kind, note, retrieval_handle, created_at) "
+        "VALUES('facts', ?, 'user-context', ?, ?, ?)",
+        (fact_id, args.note or args.statement, args.retrieval_handle, now),
+    )
+    upsert_search(conn, "facts", fact_id)
+    affected = related_candidates(conn, args.statement, args.limit)
+    conn.commit()
+    conn.close()
+    emit(
+        {
+            "ok": True,
+            "id": fact_id,
+            "status": status,
+            "affected_candidates": affected,
+            "next": "verify if this affects the active job, a hypothesis, a rejection, or a parked direction",
+        }
+    )
+
+
+def cmd_job_upsert(args) -> None:
+    conn = connect(repo_path(args))
+    status = require_status(args.status, JOB_STATUSES, "job status")
+    job_id = args.id or stable_id("job", args.goal)
+    now = utcnow()
+    if status == "ACTIVE":
+        conn.execute(
+            "UPDATE investigations SET status='NEXT', ended_at=NULL "
+            "WHERE mode='JOB' AND status='ACTIVE' AND id<>?",
+            (job_id,),
+        )
+    existing = conn.execute("SELECT * FROM investigations WHERE id = ?", (job_id,)).fetchone()
+    started_at = existing["started_at"] if existing else now
+    ended_at = now if status in {"DONE", "BLOCKED"} else None
+    conn.execute(
+        "INSERT INTO investigations(id, mode, goal, status, result, started_at, ended_at) "
+        "VALUES(?, 'JOB', ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET "
+        "goal=excluded.goal, status=excluded.status, result=excluded.result, ended_at=excluded.ended_at",
+        (job_id, args.goal, status, args.result or "", started_at, ended_at),
+    )
+    conn.commit()
+    conn.close()
+    emit({"ok": True, "id": job_id, "status": status})
+
+
+def cmd_observation_add(args) -> None:
+    conn = connect(repo_path(args))
+    fact_id = args.id or stable_id("fact:observation", f"{args.job_id}\0{args.statement}")
+    status = require_status(args.status, EVIDENCE_STATUSES, "evidence status")
+    now = utcnow()
+    conn.execute(
+        "INSERT INTO facts(id, subject_id, kind, statement, status, confidence, created_at, updated_at) "
+        "VALUES(?, ?, 'OBSERVATION', ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET "
+        "subject_id=excluded.subject_id, statement=excluded.statement, status=excluded.status, "
+        "confidence=excluded.confidence, updated_at=excluded.updated_at",
+        (fact_id, args.job_id, args.statement, status, args.confidence, now, now),
+    )
+    if args.note:
+        conn.execute(
+            "INSERT INTO evidence(record_type, record_id, source_kind, note, retrieval_handle, created_at) "
+            "VALUES('facts', ?, 'observation', ?, ?, ?)",
+            (fact_id, args.note, args.retrieval_handle, now),
+        )
+    upsert_search(conn, "facts", fact_id)
+    conn.commit()
+    conn.close()
+    emit({"ok": True, "id": fact_id, "job_id": args.job_id, "status": status})
+
+
+def cmd_probe_add(args) -> None:
+    conn = connect(repo_path(args))
+    body = (
+        f"setup: {args.setup}\nsequence: {args.sequence}\n"
+        f"before: {args.state_before or ''}\nafter: {args.state_after or ''}\nresult: {args.result}"
+    )
+    fact_id = args.id or stable_id("fact:state-probe", f"{args.job_id}\0{body}")
+    now = utcnow()
+    conn.execute(
+        "INSERT INTO facts(id, subject_id, kind, statement, status, confidence, created_at, updated_at) "
+        "VALUES(?, ?, 'STATE_PROBE', ?, 'VERIFIED', 0.8, ?, ?) ON CONFLICT(id) DO UPDATE SET "
+        "subject_id=excluded.subject_id, statement=excluded.statement, updated_at=excluded.updated_at",
+        (fact_id, args.job_id, body, now, now),
+    )
+    conn.execute(
+        "INSERT INTO evidence(record_type, record_id, source_kind, note, retrieval_handle, created_at) "
+        "VALUES('facts', ?, 'state-probe', ?, ?, ?)",
+        (fact_id, args.result, args.harness, now),
+    )
+    upsert_search(conn, "facts", fact_id)
+    conn.commit()
+    conn.close()
+    emit({"ok": True, "id": fact_id, "job_id": args.job_id})
+
+
+def cmd_research_packet(args) -> None:
+    conn = connect(repo_path(args))
+    job = conn.execute("SELECT * FROM investigations WHERE id=? AND mode='JOB'", (args.job_id,)).fetchone()
+    if job is None:
+        raise ValueError(f"job not found: {args.job_id}")
+    context_hits = search_rows(conn, job["goal"], args.limit)
+    job_facts = as_dicts(
+        conn.execute(
+            "SELECT id, kind, statement, status, confidence, updated_at FROM facts "
+            "WHERE subject_id=? ORDER BY updated_at DESC LIMIT ?",
+            (args.job_id, args.limit),
+        )
+    )
+    hypotheses = as_dicts(
+        conn.execute(
+            "SELECT id, title, status, claim, next_check, rejection_reason, reopen_condition "
+            "FROM hypotheses WHERE claim LIKE ? OR next_check LIKE ? OR root_cause_key LIKE ? "
+            "ORDER BY updated_at DESC LIMIT ?",
+            (f"%{job['goal'][:80]}%", f"%{job['goal'][:80]}%", f"%{job['goal'][:80]}%", args.limit),
+        )
+    )
+    conn.close()
+    emit(
+        {
+            "job": dict(job),
+            "context_hits": context_hits,
+            "job_facts": job_facts,
+            "related_hypotheses": hypotheses,
+            "bounds": {"limit": args.limit, "source_text_included": False},
+        }
+    )
+
+
 def stale_evidence(conn, repo: Path) -> list[dict[str, Any]]:
     rows = conn.execute(
         "SELECT id, record_type, record_id, file_path, file_sha256 FROM evidence "
@@ -1053,6 +1235,48 @@ def cmd_poc_gate(args) -> None:
         raise SystemExit(6)
 
 
+def cmd_poc_config(args) -> None:
+    repo = repo_path(args)
+    path = Path(args.path).expanduser().resolve()
+    if not (path / "SKILL.md").exists():
+        raise ValueError(f"PoC skill path must contain SKILL.md: {path}")
+    conn = connect(repo)
+    conn.execute(
+        "INSERT INTO meta(key, value) VALUES('poc_skill_path', ?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        (str(path),),
+    )
+    conn.commit()
+    conn.close()
+    emit({"ok": True, "poc_skill_path": str(path)})
+
+
+def cmd_poc_handoff(args) -> None:
+    repo = repo_path(args)
+    conn = connect(repo)
+    gate = poc_gate(conn, repo, args.hypothesis_id)
+    hypothesis = conn.execute(
+        "SELECT id, title, claim, attacker_capability, impact_goal_id, root_cause_key, next_check "
+        "FROM hypotheses WHERE id=?",
+        (args.hypothesis_id,),
+    ).fetchone()
+    conn.close()
+    if hypothesis is None:
+        raise ValueError(f"hypothesis not found: {args.hypothesis_id}")
+    result = {
+        "ok": gate["ok"],
+        "gate": gate,
+        "handoff": {
+            "poc_skill_path": gate.get("poc_skill_path", ""),
+            "hypothesis": dict(hypothesis),
+            "instruction": "read the configured PoC skill SKILL.md and attempt the strongest practical proof",
+        },
+    }
+    emit(result)
+    if not gate["ok"]:
+        raise SystemExit(6)
+
+
 def cmd_report_gate(args) -> None:
     repo = repo_path(args)
     conn = connect(repo)
@@ -1181,6 +1405,49 @@ def build_parser() -> argparse.ArgumentParser:
     evidence.add_argument("--retrieval-handle")
     evidence.set_defaults(func=cmd_evidence_add)
 
+    context_add = sub.add_parser("context-add", help="store unverified user context and report affected records")
+    add_repo(context_add)
+    context_add.add_argument("--id")
+    context_add.add_argument("--subject-id")
+    context_add.add_argument("--statement", required=True)
+    context_add.add_argument("--status", default="UNKNOWN")
+    context_add.add_argument("--confidence", type=float, default=0.5)
+    context_add.add_argument("--note")
+    context_add.add_argument("--retrieval-handle")
+    context_add.add_argument("--limit", type=int, default=10)
+    context_add.set_defaults(func=cmd_context_add)
+
+    job = sub.add_parser("job-upsert", help="create or update one meaningful research job")
+    add_repo(job)
+    job.add_argument("--id")
+    job.add_argument("--goal", required=True)
+    job.add_argument("--status", default="NEXT")
+    job.add_argument("--result")
+    job.set_defaults(func=cmd_job_upsert)
+
+    observation = sub.add_parser("observation-add", help="record a job-scoped observation")
+    add_repo(observation)
+    observation.add_argument("--id")
+    observation.add_argument("--job-id", required=True)
+    observation.add_argument("--statement", required=True)
+    observation.add_argument("--status", default="INFERRED")
+    observation.add_argument("--confidence", type=float, default=0.5)
+    observation.add_argument("--note")
+    observation.add_argument("--retrieval-handle")
+    observation.set_defaults(func=cmd_observation_add)
+
+    probe = sub.add_parser("probe-add", help="record a focused exploratory state probe")
+    add_repo(probe)
+    probe.add_argument("--id")
+    probe.add_argument("--job-id", required=True)
+    probe.add_argument("--setup", required=True)
+    probe.add_argument("--sequence", required=True)
+    probe.add_argument("--state-before")
+    probe.add_argument("--state-after")
+    probe.add_argument("--result", required=True)
+    probe.add_argument("--harness")
+    probe.set_defaults(func=cmd_probe_add)
+
     hypothesis = sub.add_parser("hypothesis-upsert", help="create or update a hypothesis")
     add_repo(hypothesis)
     hypothesis.add_argument("--id", required=True)
@@ -1284,6 +1551,12 @@ def build_parser() -> argparse.ArgumentParser:
     context.add_argument("--relation-limit", type=int, default=30)
     context.set_defaults(func=cmd_context)
 
+    packet = sub.add_parser("research-packet", help="bounded packet for one active research job")
+    add_repo(packet)
+    packet.add_argument("job_id")
+    packet.add_argument("--limit", type=int, default=20)
+    packet.set_defaults(func=cmd_research_packet)
+
     stale = sub.add_parser("stale", help="check source scope and evidence freshness")
     add_repo(stale)
     stale.set_defaults(func=cmd_stale)
@@ -1312,12 +1585,22 @@ def build_parser() -> argparse.ArgumentParser:
     approve.add_argument("--note", required=True)
     approve.set_defaults(func=cmd_approve_poc)
 
-    pgate = sub.add_parser("poc-gate", help="verify current human approval and source/claim freshness")
+    poc_config = sub.add_parser("poc-config", help="configure the dedicated PoC skill path")
+    add_repo(poc_config)
+    poc_config.add_argument("--path", required=True)
+    poc_config.set_defaults(func=cmd_poc_config)
+
+    pgate = sub.add_parser("poc-gate", help="verify automatic PoC handoff readiness")
     add_repo(pgate)
     pgate.add_argument("hypothesis_id")
     pgate.set_defaults(func=cmd_poc_gate)
 
-    rgate = sub.add_parser("report-gate", help="verify confirmation, proof approval, and novelty")
+    handoff = sub.add_parser("poc-handoff", help="return the configured PoC skill handoff packet")
+    add_repo(handoff)
+    handoff.add_argument("hypothesis_id")
+    handoff.set_defaults(func=cmd_poc_handoff)
+
+    rgate = sub.add_parser("report-gate", help="verify proof validation and novelty")
     add_repo(rgate)
     rgate.add_argument("hypothesis_id")
     rgate.set_defaults(func=cmd_report_gate)

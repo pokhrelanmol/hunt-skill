@@ -16,7 +16,7 @@ Choose tools because the current evidence demands them. Do not run a universal s
 | Historical precedent | Solodit after a local anchor |
 | On-chain simulation/trace | Installed Tenderly skill |
 | Narrow live read | `cast` with pinned chain/block |
-| Focused behavior proof | Foundry test/fuzz/invariant test, only after PoC approval |
+| Focused behavior proof | Configured PoC skill, then Foundry test/fuzz/invariant test or fork/Tenderly proof |
 | Graph/path/context | `auditctl.py` bounded SQLite commands |
 | Portable checkpoint | Deterministic JSONL export |
 

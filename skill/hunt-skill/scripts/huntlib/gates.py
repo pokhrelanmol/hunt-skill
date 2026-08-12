@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from pathlib import Path
+
 from .db import utcnow
 from .scope import current_scope, latest_snapshot
 
@@ -42,31 +44,34 @@ def poc_gate(conn, repo, hypothesis_id: str) -> dict[str, Any]:
     hypothesis = conn.execute("SELECT * FROM hypotheses WHERE id = ?", (hypothesis_id,)).fetchone()
     if hypothesis is None:
         return {"ok": False, "reason": "hypothesis not found", "hypothesis_id": hypothesis_id}
-    allowed_statuses = {"MANUAL_VALIDATED", "CONFIRMED"}
+    allowed_statuses = {"CODE_VALIDATED", "MANUAL_VALIDATED", "POC_VALIDATED", "CONFIRMED"}
     approval = conn.execute(
         "SELECT * FROM manual_approvals WHERE hypothesis_id = ? AND action = 'POC' "
         "AND revoked_at IS NULL ORDER BY id DESC LIMIT 1",
         (hypothesis_id,),
     ).fetchone()
     scope = current_scope(conn, repo)
+    configured = conn.execute("SELECT value FROM meta WHERE key='poc_skill_path'").fetchone()
+    poc_skill_path = configured["value"] if configured else ""
     reasons = []
     if hypothesis["status"] not in allowed_statuses:
-        reasons.append(f"status is {hypothesis['status']}, expected MANUAL_VALIDATED")
-    if approval is None:
-        reasons.append("manual PoC approval missing")
-    else:
+        reasons.append(f"status is {hypothesis['status']}, expected CODE_VALIDATED")
+    if not scope["ok"]:
+        reasons.append("scoped source changed after the latest snapshot")
+    if not poc_skill_path:
+        reasons.append("dedicated PoC skill path not configured")
+    elif not (Path(poc_skill_path).expanduser() / "SKILL.md").exists():
+        reasons.append("configured PoC skill path does not contain SKILL.md")
+    if approval is not None:
         if approval["claim_hash"] != hypothesis["claim_hash"]:
-            reasons.append("hypothesis claim changed after approval")
-        if not scope["ok"]:
-            reasons.append("scoped source changed after the latest snapshot")
-        if approval["scope_hash"] != scope["scope_hash"]:
-            reasons.append("approval is bound to a different source scope")
+            reasons.append("legacy manual approval is stale for the current claim")
     return {
         "ok": not reasons,
         "hypothesis_id": hypothesis_id,
         "reasons": reasons,
         "status": hypothesis["status"],
         "approval": dict(approval) if approval else None,
+        "poc_skill_path": poc_skill_path,
         "scope": scope,
     }
 
@@ -122,19 +127,19 @@ def report_gate(conn, repo, hypothesis_id: str) -> dict[str, Any]:
     hypothesis = conn.execute("SELECT * FROM hypotheses WHERE id = ?", (hypothesis_id,)).fetchone()
     if hypothesis is None:
         return {"ok": False, "reason": "hypothesis not found", "hypothesis_id": hypothesis_id}
-    poc = poc_gate(conn, repo, hypothesis_id)
     novelty = novelty_gate(conn, hypothesis_id)
+    scope = current_scope(conn, repo)
     reasons = []
-    if hypothesis["status"] != "CONFIRMED":
-        reasons.append(f"status is {hypothesis['status']}, expected CONFIRMED")
-    if not poc["ok"]:
-        reasons.append("PoC/manual validation gate failed")
+    if hypothesis["status"] not in {"POC_VALIDATED", "CONFIRMED"}:
+        reasons.append(f"status is {hypothesis['status']}, expected POC_VALIDATED")
+    if not scope["ok"]:
+        reasons.append("scoped source changed after the latest snapshot")
     if not novelty["ok"]:
         reasons.append("novelty gate failed")
     return {
         "ok": not reasons,
         "hypothesis_id": hypothesis_id,
         "reasons": reasons,
-        "poc_gate": poc,
+        "scope": scope,
         "novelty_gate": novelty,
     }

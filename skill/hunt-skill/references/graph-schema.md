@@ -33,14 +33,15 @@ Call-site identity must include the caller plus a compiler/source identity such 
 | `nodes` | Contracts, functions, storage, roles, assets, external systems, lifecycle states. |
 | `relations` | Directed typed edges between nodes. |
 | `evidence` | Source, documentation, test, audit, or on-chain support for any record. |
-| `facts` | Verified observations, inferences, and unresolved assumptions. |
+| `facts` | Verified observations, inferences, unresolved assumptions, user context, observations, and state probes. |
 | `invariants` | Protocol properties that should remain true. |
 | `impact_goals` | Protocol-specific bad states and attacker objectives linked to invariants. |
 | `hypotheses` | Leads and their disposition, root cause, impact, blockers, and next check. |
 | `hypothesis_links` | Evidence graph for each hypothesis. |
 | `known_findings`, `novelty_checks` | Historical precedents and duplicate screening. |
 | `live_evidence` | Chain/block/address-bound configuration, simulation, and trace observations. |
-| `manual_approvals` | Human approval records binding PoC work to a claim and source snapshot. |
+| `investigations` | Research jobs; use mode `JOB` and keep only one `ACTIVE` job at a time. |
+| `manual_approvals` | Legacy approval records retained for old databases, not the normal PoC path. |
 
 The current generic records can represent deterministic RECON facts as typed nodes, relations, and evidence. Do not claim that a dedicated normalized dataflow table exists unless the installed tooling actually provides one.
 
@@ -71,14 +72,30 @@ Evidence status:
 Hypothesis lifecycle:
 
 ```text
-LEAD -> INVESTIGATING -> CODE_VALIDATED -> MANUAL_VALIDATED -> CONFIRMED
+LEAD -> INVESTIGATING -> CODE_VALIDATED -> POC_VALIDATED -> CONFIRMED
                          |                |
-                         |                +-> POC_BLOCKED when approval is stale/missing
+                         |                +-> POC_BLOCKED when proof environment/context is missing
                          +-> BLOCKED
 Any nonterminal state -> REJECTED
 ```
 
-Only the user can authorize `MANUAL_VALIDATED`. A PoC gate checks the approval, claim hash, and current source scope every time.
+`CODE_VALIDATED` automatically runs PoC handoff for the same hypothesis. The handoff checks current source scope and a configured dedicated PoC skill path; the user is asked only when proof is blocked by missing context or environment.
+
+Research job lifecycle:
+
+```text
+NEXT -> ACTIVE -> DONE
+        |        |
+        +-> PARKED
+        +-> BLOCKED
+```
+
+User context lifecycle:
+
+```text
+USER_CONTEXT fact starts UNKNOWN unless independently verified.
+New context must be linked to affected jobs, hypotheses, assumptions, or rejected paths before it changes audit state.
+```
 
 Impact lifecycle:
 

@@ -1,8 +1,8 @@
 # Hunt Skill
 
-Hunt Skill is a project-local Codex skill for adversarial smart-contract auditing. It combines protocol relationship mapping, impact-first hunting, bounded SQLite context retrieval, historical-pattern research, skeptical validation, and human-gated PoC work.
+Hunt Skill is a project-local Codex skill for adversarial smart-contract auditing. It combines protocol relationship mapping, impact-first hunting, bounded SQLite context retrieval, historical-pattern research, skeptical validation, human-steered research direction, and automatic PoC handoff for code-validated hypotheses.
 
-The skill is designed to be installed into each audit repository under `.agents/skills/hunt-skill`. Every project keeps its own `.audit/graph/audit.db`, scope snapshot, hypotheses, evidence, novelty checks, and manual approvals.
+The skill is designed to be installed into each audit repository under `.agents/skills/hunt-skill`. Every project keeps its own `.audit/graph/audit.db`, scope snapshot, hypotheses, evidence, novelty checks, research jobs, observations, and legacy manual approvals.
 
 ## What It Enforces
 
@@ -12,7 +12,7 @@ The skill is designed to be installed into each audit repository under `.agents/
 - Pattern matching is used as bounded fallback inspiration when code-led hunting stalls, then again to validate novelty and known-issue status.
 - Repository audits, similar audits, Solodit, and the EVM Hack Registry must be checked before reporting.
 - Tenderly is preferred for simulations, traces, forks, and state overrides when its skill is available.
-- PoC work is blocked until the user manually approves a code-validated hypothesis. Approval becomes stale when the claim or scoped source changes.
+- A code-validated hypothesis automatically hands off to a configured dedicated PoC skill; proof still checks current scope and asks the user only when required environment/context is missing.
 
 ## Requirements
 
@@ -71,6 +71,13 @@ python3 "$AUDITCTL" db-info --repo "$PROJECT"
 ```
 
 Template impact rows begin as `DRAFT`. They cannot become `READY` until they identify the protocol-specific invariant, decision point, bad state, attacker objective, and candidate primitives.
+
+Configure the dedicated PoC skill once if automatic proof handoff should run:
+
+```bash
+python3 "$AUDITCTL" poc-config --repo "$PROJECT" \
+  --path /absolute/path/to/poc-skill
+```
 
 ## Invoke The Skill
 

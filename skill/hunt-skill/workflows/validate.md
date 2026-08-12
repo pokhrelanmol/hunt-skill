@@ -31,12 +31,12 @@
 
 **Exit:** The lead is duplicate/rejected, blocked, or novel enough to reach `CODE_VALIDATED`.
 
-## Phase 4: Hand Back To User
+## Phase 4: Proof Handoff
 
 **Entry:** Status is `CODE_VALIDATED`.
 
 1. Present capability, call path, before/after state, broken invariant, impact, strongest blocker addressed, and novelty result.
-2. Stop before PoC creation.
-3. Ask the user to manually validate and use the explicit approval command only if they agree.
+2. Run `poc-handoff` and read the configured dedicated PoC skill when it passes.
+3. Ask the user only when the PoC skill, fork/live environment, deployment data, or other material proof input is missing.
 
-**Exit:** The user has the evidence needed to approve or reject proof work.
+**Exit:** Proof begins for the same hypothesis, or the hypothesis is `POC_BLOCKED` with one concrete missing item.
