@@ -1,25 +1,19 @@
-# Evidence-Driven Tool Routing
+# Capability-Only Tool Routing
 
-Choose tools because the current evidence demands them. Do not run a universal scanner stack.
+`hunt.md` decides what to investigate. This file decides how to obtain missing evidence the Hunt methodology cannot cheaply derive from local code, graph queries, and reasoning alone.
 
-| Need | Preferred route |
+Do not route to a separate skill only for first-principles questioning, state consistency, accounting analysis, lifecycle reasoning, actor/boundary analysis, or simple mechanism explanation. Those reasoning lenses are built into Hunt.
+
+## Use External Capabilities Only When Evidence Requires Them
+
+| Evidence need | Route |
 |---|---|
-| Scope, history, dirty state | `git`, SHA-256 scope snapshot |
-| Fast code and symbol search | `rg` |
-| Solidity compile/AST facts | Foundry build-info, optional Slither |
-| Entrypoint inventory | `entry-point-analyzer` skill |
-| Coupled state concern | `state-inconsistency-auditor` skill |
-| Business-logic assumption | `feynman-auditor` skill |
-| Spec mismatch | `spec-to-code-compliance` skill |
-| Token semantics | `token-integration-analyzer` skill |
-| Root-cause variants | `variant-analysis` after validation |
-| Historical precedent | Solodit after a local anchor when key/tooling are available |
-| On-chain simulation/trace | Installed Tenderly skill |
-| Narrow live read | `auditctl.py cast-read` with pinned chain/block |
-| Focused behavior proof | Configured PoC skill, then Foundry test/fuzz/invariant test or fork/Tenderly proof |
-| Graph/path/context | `auditctl.py` bounded SQLite commands |
-| Portable checkpoint | Deterministic JSONL export |
+| Historical primitive, similar prior finding, or novelty check | Solodit / historical finding search when key and tooling are available |
+| Current or historical on-chain behavior requiring trace, simulation, fork, or state override | Installed Tenderly capability when available and useful |
+| Narrow live-chain fact such as config, balance, code, storage, or view call | `auditctl.py cast-read` with pinned chain/block/address and redacted RPC provenance |
+| Executable proof after `CODE_VALIDATED` | Configured dedicated PoC skill via `poc-handoff` |
+| Specialized external analyzer that returns unique evidence Hunt cannot efficiently derive locally | Use only for the specific ACTIVE JOB and record the evidence/provenance |
 
-Pass specialists a compact question, relevant IDs, source spans, and unresolved assumptions. The main agent owns status, deduplication, graph updates, and final judgment.
+If local code, SQLite graph context, compiler artifacts, tests, or focused State Probes answer the question, do not load an external skill.
 
-Prefer deterministic extraction for symbols, hashes, direct edges, freshness, and search. Reserve model reasoning for invariants, protocol-specific impacts, cross-module composition, economics, and skeptical validation.
+Kept tools remain on-demand, not automatic. Run only the one capability needed for the current ACTIVE JOB.

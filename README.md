@@ -71,6 +71,29 @@ If you need optional Solodit, Alchemy, update, or scope commands, go to [docs/SE
 
 Hunt handles `auditctl`, SQLite, graph retrieval, State Probes, Solodit research, chain detection, Tenderly, `cast`, RPC selection, and PoC handoff internally.
 
+## Built-In Methodology vs External Capabilities
+
+Hunt does not depend on a pile of reasoning agents. The core methodology is built into this skill:
+
+- first-principles questioning;
+- state consistency analysis;
+- economic and accounting analysis;
+- lifecycle and ordering analysis;
+- boundary, actor, and permission reasoning;
+- external reachability reasoning;
+- State Probes;
+- falsification and skeptical validation.
+
+External tools are capability providers. Use them only when the current ACTIVE JOB needs evidence that local code, graph context, probes, and reasoning cannot provide efficiently:
+
+- historical finding retrieval with Solodit or similar sources;
+- live-chain reads with `cast`;
+- fork, trace, simulation, or state override with Tenderly;
+- executable proof through the configured dedicated PoC skill;
+- a specialized external analyzer only when it returns unique evidence for the active job.
+
+If local code and the SQLite graph answer the question, Hunt should not load another reasoning skill just to think harder.
+
 ## Invoke The Skill
 
 Examples:

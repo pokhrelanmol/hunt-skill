@@ -39,7 +39,7 @@ Run this workflow only after an explicit broad-audit request.
 
 1. Enumerate reachable entrypoints once.
 2. Batch connected entrypoint-impact pairs by subsystem.
-3. Apply first-principles and state-consistency siblings to each batch.
+3. Apply Hunt's built-in first-principles, state-consistency, accounting, lifecycle, actor, and integration lenses to each batch.
 4. Persist coverage and kill weak paths early.
 
 **Exit:** Each material surface has a disposition or named unresolved check.

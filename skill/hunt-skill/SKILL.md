@@ -130,7 +130,7 @@ If intent is ambiguous, answer in `CHAT` and name the next discriminating check.
 - [references/historical-research.md](references/historical-research.md): Solodit, similar audits, and hack-registry routing.
 - [references/live-investigation.md](references/live-investigation.md): Tenderly-first on-chain evidence policy.
 - [references/state-probes.md](references/state-probes.md): focused probe selection and provenance rules.
-- [references/tool-routing.md](references/tool-routing.md): choose local tools and specialist skills from evidence.
+- [references/tool-routing.md](references/tool-routing.md): choose external evidence capabilities only when local code, graph context, probes, and reasoning cannot answer the active job.
 - [references/cli.md](references/cli.md): compact command reference.
 
 ## Success Criteria
