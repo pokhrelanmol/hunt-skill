@@ -13,9 +13,9 @@ Choose tools because the current evidence demands them. Do not run a universal s
 | Spec mismatch | `spec-to-code-compliance` skill |
 | Token semantics | `token-integration-analyzer` skill |
 | Root-cause variants | `variant-analysis` after validation |
-| Historical precedent | Solodit after a local anchor |
+| Historical precedent | Solodit after a local anchor when key/tooling are available |
 | On-chain simulation/trace | Installed Tenderly skill |
-| Narrow live read | `cast` with pinned chain/block |
+| Narrow live read | `auditctl.py cast-read` with pinned chain/block |
 | Focused behavior proof | Configured PoC skill, then Foundry test/fuzz/invariant test or fork/Tenderly proof |
 | Graph/path/context | `auditctl.py` bounded SQLite commands |
 | Portable checkpoint | Deterministic JSONL export |

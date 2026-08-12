@@ -68,7 +68,16 @@ Expected requirements:
 - SQLite FTS5: `true`
 - Runtime dependencies: empty
 
-Tenderly is optional for local code analysis. Live simulation claims remain blocked when a separate Tenderly skill or CLI is unavailable.
+Tenderly is optional for local code analysis. When live state matters, Hunt prefers Tenderly for simulations/traces/forks and falls back to `cast` plus Alchemy/public RPC for narrow reads.
+
+Optional shell keys:
+
+```bash
+export SOLODIT_API_KEY="..."
+export ALCHEMY_API_KEY="..."
+```
+
+`SOLODIT_API_KEY` enables Solodit-backed historical research. `ALCHEMY_API_KEY` is optional for preferred authenticated RPC; supported chains can fall back to public RPC.
 
 ## 5. Lock The Audit Scope
 
@@ -150,7 +159,7 @@ When a hypothesis reaches `CODE_VALIDATED`, Codex runs:
 python3 "$AUDITCTL" poc-handoff --repo "$PROJECT" HYP-001
 ```
 
-The handoff checks that the scope is fresh and the configured PoC skill contains `SKILL.md`. If proof needs missing environment data, such as an RPC endpoint or deployed address, Codex asks for that missing item.
+The handoff checks that the scope is fresh and the configured PoC skill contains `SKILL.md`. Hunt resolves normal supported RPCs automatically; Codex asks only for genuinely missing proof inputs such as deployed addresses, historical blocks, archive-only capability, or unavailable fixtures.
 
 ## 10. Update Or Remove
 

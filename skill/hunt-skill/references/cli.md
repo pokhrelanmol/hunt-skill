@@ -70,9 +70,14 @@ Keep only one `ACTIVE` job. User context starts as `UNKNOWN` unless independentl
 python3 "$AUDITCTL" known-add --repo . --id KNOWN-001 --source-kind repo-known --source "audit.pdf" --title "..." --root-cause "..."
 python3 "$AUDITCTL" novelty-add --repo . HYP-001 --source-kind solodit --query "..." --result "..." --overlap NEW
 python3 "$AUDITCTL" novelty-gate --repo . HYP-001
+python3 "$AUDITCTL" rpc-resolve --repo . --chain base
+python3 "$AUDITCTL" cast-read --repo . --chain base --operation call \
+  --address 0x... --signature "totalAssets()(uint256)"
 python3 "$AUDITCTL" live-add --repo . --id LIVE-001 --source-tool tenderly --chain-id 1 --block 123 \
   --address 0x... --claim "..." --status VERIFIED --retrieval-handle "simulation/fork id"
 ```
+
+`cast-read` prefers `ALCHEMY_API_KEY` when available and otherwise uses a public RPC fallback for supported chains. Secret-bearing URLs are redacted from output.
 
 ## Automatic PoC Handoff
 

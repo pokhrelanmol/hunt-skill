@@ -29,7 +29,7 @@ Use this after a local hypothesis survives falsification.
 
 1. Anchor the search to local code, a `READY` protocol impact/invariant, or a material external integration.
 2. Search repository-known issues and bundled audits first.
-3. Search Solodit using the root cause, protocol archetype, invariant, and integration name.
+3. Search Solodit using the root cause, protocol archetype, invariant, and integration name when `SOLODIT_API_KEY` and tooling are available.
 4. Review similar protocol audits for the same economic decision and attacker flow.
 5. Search the EVM Hack Registry for incident mechanics and missing variants.
 6. For inspiration, return matches to local code as questions. For validation, record overlaps in SQLite and explain why the root cause is duplicate, distinct, or unclear.
@@ -52,10 +52,12 @@ bridge refund recipient retry stranded funds blacklist
 
 ## Tool Routing
 
-- Use the installed Solodit skill/MCP for targeted historical findings.
+- Use the installed Solodit skill/MCP for targeted historical findings when `SOLODIT_API_KEY` is configured. If the key or tooling is unavailable, state that Solodit research was not performed and continue local hunting.
 - Use bundled PDFs/Markdown and official audit repositories for known-issue screening.
 - Use a small CLI adapter for `sanbir/evm-hack-registry` rather than building an MCP unless authentication, remote hosting, or multi-client access becomes necessary.
 - Pin source URL, record/commit/date, query, and conclusion in each novelty check.
+
+Never store or print `SOLODIT_API_KEY`. Solodit results generate attack primitives and duplicate leads, not evidence for the current protocol.
 
 ## Promotion Rule
 

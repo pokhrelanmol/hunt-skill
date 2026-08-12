@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -42,11 +43,15 @@ class AuditCtlTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp.cleanup()
 
-    def run_cli(self, *args: str, expected: int = 0) -> dict:
+    def run_cli(self, *args: str, expected: int = 0, env: dict[str, str] | None = None) -> dict:
+        child_env = os.environ.copy()
+        if env:
+            child_env.update(env)
         result = subprocess.run(
             [sys.executable, str(AUDITCTL), *args, "--repo", str(self.repo)],
             capture_output=True,
             text=True,
+            env=child_env,
         )
         self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
         return json.loads(result.stdout)
@@ -54,6 +59,31 @@ class AuditCtlTests(unittest.TestCase):
     def test_doctor_does_not_mistake_hunt_skill_for_tenderly(self) -> None:
         result = self.run_cli("doctor")
         self.assertNotIn(str(SKILL_ROOT), result["tenderly"]["skill_paths"])
+        self.assertIn("solodit", result)
+        self.assertIn("live_state", result)
+        self.assertIn("alchemy_api_key", result["live_state"])
+
+    def test_rpc_resolution_prefers_alchemy_without_printing_key_and_public_fallback(self) -> None:
+        key = "test-alchemy-secret"
+        alchemy = self.run_cli(
+            "rpc-resolve",
+            "--chain",
+            "base",
+            env={"ALCHEMY_API_KEY": key},
+        )
+        self.assertEqual(alchemy["provider"], "alchemy")
+        self.assertIn("<redacted>", alchemy["rpc_url"])
+        self.assertNotIn(key, json.dumps(alchemy))
+
+        public = self.run_cli(
+            "rpc-resolve",
+            "--chain-id",
+            "42161",
+            env={"ALCHEMY_API_KEY": ""},
+        )
+        self.assertEqual(public["provider"], "public")
+        self.assertEqual(public["chain_id"], 42161)
+        self.assertIn("arb1.arbitrum.io", public["rpc_url"])
 
     def setup_store(self) -> None:
         self.run_cli("init")

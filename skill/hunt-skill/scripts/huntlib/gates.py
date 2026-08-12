@@ -82,7 +82,7 @@ def record_poc_approval(conn, repo, hypothesis_id: str, approved_by: str, note: 
         raise ValueError(f"hypothesis not found: {hypothesis_id}")
     if hypothesis["status"] != "CODE_VALIDATED":
         raise ValueError(
-            f"hypothesis must be CODE_VALIDATED before manual approval; current={hypothesis['status']}"
+            f"legacy approval requires CODE_VALIDATED; current={hypothesis['status']}"
         )
     scope = current_scope(conn, repo)
     if not scope["ok"]:

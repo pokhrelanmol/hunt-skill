@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import sqlite3
+import subprocess
 import sys
 from collections import deque
 from pathlib import Path
@@ -118,7 +119,41 @@ def claim_hash(claim: str) -> str:
     return hashlib.sha256(claim.strip().encode()).hexdigest()
 
 
-def detect_tenderly() -> dict[str, Any]:
+CHAIN_INFO: dict[int, dict[str, Any]] = {
+    1: {
+        "name": "Ethereum",
+        "aliases": {"ethereum", "eth", "mainnet", "ethereum-mainnet"},
+        "alchemy": "https://eth-mainnet.g.alchemy.com/v2/{key}",
+        "public": ["https://eth.llamarpc.com", "https://ethereum.publicnode.com"],
+    },
+    10: {
+        "name": "Optimism",
+        "aliases": {"optimism", "op", "op-mainnet", "optimism-mainnet"},
+        "alchemy": "https://opt-mainnet.g.alchemy.com/v2/{key}",
+        "public": ["https://mainnet.optimism.io"],
+    },
+    137: {
+        "name": "Polygon",
+        "aliases": {"polygon", "matic", "polygon-mainnet"},
+        "alchemy": "https://polygon-mainnet.g.alchemy.com/v2/{key}",
+        "public": ["https://polygon.drpc.org", "https://polygon.publicnode.com"],
+    },
+    8453: {
+        "name": "Base",
+        "aliases": {"base", "base-mainnet"},
+        "alchemy": "https://base-mainnet.g.alchemy.com/v2/{key}",
+        "public": ["https://mainnet.base.org", "https://base.publicnode.com"],
+    },
+    42161: {
+        "name": "Arbitrum",
+        "aliases": {"arbitrum", "arbitrum-one", "arb", "arb1"},
+        "alchemy": "https://arb-mainnet.g.alchemy.com/v2/{key}",
+        "public": ["https://arb1.arbitrum.io/rpc", "https://arbitrum-one-rpc.publicnode.com"],
+    },
+}
+
+
+def detect_skill(keyword: str) -> list[str]:
     home = Path.home()
     roots = [home / ".agents" / "skills", home / ".codex" / "skills", home / ".claude" / "skills"]
     skills = []
@@ -132,22 +167,116 @@ def detect_tenderly() -> dict[str, Any]:
                 continue
             name_match = re.search(r"(?m)^name:\s*['\"]?([^'\"\n]+)", header)
             declared_name = name_match.group(1).strip().lower() if name_match else ""
-            if "tenderly" in skill_file.parent.name.lower() or "tenderly" in declared_name:
+            haystack = f"{skill_file.parent.name.lower()} {declared_name}"
+            if keyword.lower() in haystack:
                 skills.append(str(skill_file.parent))
+    return sorted(skills)
+
+
+def chain_by_name_or_id(value: str | int | None) -> tuple[int, dict[str, Any]] | None:
+    if value is None:
+        return None
+    text = str(value).strip().lower()
+    if text.isdigit():
+        chain_id = int(text)
+        info = CHAIN_INFO.get(chain_id)
+        return (chain_id, info) if info else None
+    for chain_id, info in CHAIN_INFO.items():
+        if text == info["name"].lower() or text in info["aliases"]:
+            return chain_id, info
+    return None
+
+
+def detected_chain(repo: Path) -> tuple[int, dict[str, Any]] | None:
+    try:
+        conn = connect(repo)
+    except (FileNotFoundError, sqlite3.Error):
+        return None
+    try:
+        row = conn.execute("SELECT value FROM meta WHERE key='chain_id'").fetchone()
+        if row:
+            found = chain_by_name_or_id(row["value"])
+            if found:
+                return found
+        row = conn.execute(
+            "SELECT chain_id FROM live_evidence ORDER BY observed_at DESC LIMIT 1"
+        ).fetchone()
+        if row:
+            return chain_by_name_or_id(row["chain_id"])
+    finally:
+        conn.close()
+    return None
+
+
+def resolve_chain(repo: Path, chain: str | None, chain_id: int | None) -> tuple[int, dict[str, Any]]:
+    requested = chain_by_name_or_id(chain_id if chain_id is not None else chain)
+    if requested:
+        return requested
+    current = detected_chain(repo)
+    if current:
+        return current
+    raise ValueError("chain not detected; provide --chain or --chain-id for this live read")
+
+
+def resolve_rpc(repo: Path, chain: str | None = None, chain_id: int | None = None) -> dict[str, Any]:
+    resolved_chain_id, info = resolve_chain(repo, chain, chain_id)
+    alchemy_key = os.environ.get("ALCHEMY_API_KEY")
+    if alchemy_key and info.get("alchemy"):
+        return {
+            "chain": info["name"],
+            "chain_id": resolved_chain_id,
+            "provider": "alchemy",
+            "rpc_url": info["alchemy"].format(key=alchemy_key),
+            "rpc_url_redacted": info["alchemy"].format(key="<redacted>"),
+            "public_fallbacks": info["public"],
+        }
+    public = info["public"][0] if info.get("public") else None
+    if not public:
+        raise ValueError(f"no RPC fallback configured for chain_id={resolved_chain_id}")
+    return {
+        "chain": info["name"],
+        "chain_id": resolved_chain_id,
+        "provider": "public",
+        "rpc_url": public,
+        "rpc_url_redacted": public,
+        "public_fallbacks": info["public"],
+    }
+
+
+def redact_secret_text(text: str) -> str:
+    redacted = text
+    for name in ("ALCHEMY_API_KEY", "SOLODIT_API_KEY"):
+        value = os.environ.get(name)
+        if value:
+            redacted = redacted.replace(value, "<redacted>")
+    return redacted
+
+
+def detect_tenderly() -> dict[str, Any]:
     env_names = [
         name
         for name in ("TENDERLY_ACCESS_KEY", "TENDERLY_ACCOUNT_SLUG", "TENDERLY_PROJECT_SLUG")
         if os.environ.get(name)
     ]
     return {
-        "skill_paths": sorted(skills),
+        "skill_paths": detect_skill("tenderly"),
         "cli": shutil.which("tenderly"),
         "environment_names_present": env_names,
-        "available": bool(skills or shutil.which("tenderly")),
+        "available": bool(detect_skill("tenderly") or shutil.which("tenderly")),
+    }
+
+
+def detect_solodit() -> dict[str, Any]:
+    skills = detect_skill("solodit")
+    return {
+        "api_key": "configured" if os.environ.get("SOLODIT_API_KEY") else "missing",
+        "skill_paths": skills,
+        "available": bool(skills and os.environ.get("SOLODIT_API_KEY")),
     }
 
 
 def cmd_doctor(args) -> None:
+    repo = repo_path(args)
     capabilities: dict[str, bool] = {}
     memory = sqlite3.connect(":memory:")
     try:
@@ -163,6 +292,16 @@ def cmd_doctor(args) -> None:
     finally:
         memory.close()
     python_ok = sys.version_info >= (3, 11)
+    chain = detected_chain(repo)
+    rpc_status = {
+        "alchemy_api_key": "configured" if os.environ.get("ALCHEMY_API_KEY") else "missing",
+        "cast": shutil.which("cast"),
+        "fallback": "alchemy" if os.environ.get("ALCHEMY_API_KEY") else "public RPC",
+    }
+    if chain:
+        chain_id, info = chain
+        rpc_status["detected_chain"] = info["name"]
+        rpc_status["chain_id"] = chain_id
     result = {
         "ok": python_ok and all(capabilities.values()),
         "python": sys.version.split()[0],
@@ -170,7 +309,9 @@ def cmd_doctor(args) -> None:
         "sqlite": sqlite3.sqlite_version,
         "sqlite_cli": shutil.which("sqlite3"),
         "capabilities": capabilities,
+        "solodit": detect_solodit(),
         "tenderly": detect_tenderly(),
+        "live_state": rpc_status,
         "runtime_dependencies": [],
         "next": "run init --repo <repo>" if python_ok and all(capabilities.values()) else "fix failed requirements",
     }
@@ -588,7 +729,7 @@ def cmd_hypothesis_status(args) -> None:
     if row is None:
         raise ValueError(f"hypothesis not found: {args.id}")
     if status == "MANUAL_VALIDATED":
-        raise ValueError("MANUAL_VALIDATED is user-gated; run approve-poc interactively")
+        raise ValueError("MANUAL_VALIDATED is legacy compatibility; use automatic poc-handoff and POC_VALIDATED")
     if status == "REJECTED" and (not args.reason or not args.reopen_condition):
         raise ValueError("REJECTED requires --reason and --reopen-condition")
     if status == "POC_BLOCKED" and not args.reason:
@@ -738,6 +879,72 @@ def cmd_live_add(args) -> None:
     conn.commit()
     conn.close()
     emit({"ok": True, "id": args.id, "observed_at": now})
+
+
+def cmd_rpc_resolve(args) -> None:
+    repo = repo_path(args)
+    rpc = resolve_rpc(repo, args.chain, args.chain_id)
+    emit(
+        {
+            "ok": True,
+            "chain": rpc["chain"],
+            "chain_id": rpc["chain_id"],
+            "provider": rpc["provider"],
+            "rpc_url": rpc["rpc_url_redacted"],
+            "public_fallbacks": rpc["public_fallbacks"],
+            "alchemy_api_key": "configured" if os.environ.get("ALCHEMY_API_KEY") else "missing",
+        }
+    )
+
+
+def cmd_cast_read(args) -> None:
+    repo = repo_path(args)
+    rpc = resolve_rpc(repo, args.chain, args.chain_id)
+    cast = shutil.which("cast")
+    if cast is None:
+        raise ValueError("cast not available; install Foundry or use Tenderly/explorer evidence")
+    command = [cast]
+    if args.operation == "call":
+        if not args.signature:
+            raise ValueError("cast call requires --signature")
+        command.extend(["call", args.address, args.signature, *(args.argument or [])])
+    elif args.operation == "storage":
+        if args.slot is None:
+            raise ValueError("cast storage requires --slot")
+        command.extend(["storage", args.address, args.slot])
+    elif args.operation == "code":
+        command.extend(["code", args.address])
+    elif args.operation == "balance":
+        command.extend(["balance", args.address])
+    else:
+        raise ValueError(f"unsupported cast operation: {args.operation}")
+    command.extend(["--rpc-url", rpc["rpc_url"]])
+    if args.block is not None:
+        command.extend(["--block", str(args.block)])
+    redacted_command = [redact_secret_text(part) for part in command]
+    run = subprocess.run(command, capture_output=True, text=True, timeout=args.timeout)
+    output = redact_secret_text(run.stdout.strip())
+    error = redact_secret_text(run.stderr.strip())
+    emit(
+        {
+            "ok": run.returncode == 0,
+            "operation": args.operation,
+            "chain": rpc["chain"],
+            "chain_id": rpc["chain_id"],
+            "provider": rpc["provider"],
+            "block": args.block,
+            "address": args.address,
+            "output": output,
+            "stderr": error,
+            "command": redacted_command,
+            "retrieval_handle": (
+                f"cast {args.operation} provider={rpc['provider']} chain_id={rpc['chain_id']} "
+                f"block={args.block or 'latest'} address={args.address}"
+            ),
+        }
+    )
+    if run.returncode != 0:
+        raise SystemExit(8)
 
 
 def fts_query(raw: str) -> str:
@@ -1682,6 +1889,25 @@ def build_parser() -> argparse.ArgumentParser:
     live.add_argument("--retrieval-handle", required=True)
     live.add_argument("--retest-trigger")
     live.set_defaults(func=cmd_live_add)
+
+    rpc = sub.add_parser("rpc-resolve", help="resolve chain to Alchemy or public RPC without printing secrets")
+    add_repo(rpc)
+    rpc.add_argument("--chain")
+    rpc.add_argument("--chain-id", type=int)
+    rpc.set_defaults(func=cmd_rpc_resolve)
+
+    cast_read = sub.add_parser("cast-read", help="run a narrow cast live-state read with redacted provenance")
+    add_repo(cast_read)
+    cast_read.add_argument("--operation", choices=("call", "storage", "code", "balance"), required=True)
+    cast_read.add_argument("--chain")
+    cast_read.add_argument("--chain-id", type=int)
+    cast_read.add_argument("--address", required=True)
+    cast_read.add_argument("--signature")
+    cast_read.add_argument("--argument", action="append")
+    cast_read.add_argument("--slot")
+    cast_read.add_argument("--block", type=int)
+    cast_read.add_argument("--timeout", type=int, default=30)
+    cast_read.set_defaults(func=cmd_cast_read)
 
     search = sub.add_parser("search", help="bounded FTS search")
     add_repo(search)

@@ -20,8 +20,24 @@ The skill is designed to be installed into each audit repository under `.agents/
 - SQLite with JSON1 and FTS5, included with normal modern Python distributions
 - Git
 - Codex project skill discovery through `.agents/skills`
+- Optional: Foundry `cast` for narrow live-state reads
 
 No model API key, database server, Python package installation, or global skill symlink is required.
+
+## Optional Environment Setup
+
+Hunt inherits API keys from your shell. Do not put keys in `.audit/`, SQLite, reports, or command examples.
+
+For zsh, add this to `~/.zshrc` and run `source ~/.zshrc`:
+
+```bash
+export SOLODIT_API_KEY="..."
+export ALCHEMY_API_KEY="..."
+```
+
+For bash, add the same exports to `~/.bashrc` and run `source ~/.bashrc`.
+
+`SOLODIT_API_KEY` enables Solodit-backed historical vulnerability research. `ALCHEMY_API_KEY` is optional and lets Hunt prefer authenticated Alchemy RPC for `cast` live-state reads; if absent, Hunt falls back to public RPC for supported chains.
 
 ## Install Into A Project
 
@@ -50,7 +66,17 @@ Restart or open a new Codex task in the project after installation so project sk
 
 For installation options, upgrades, scope setup, and troubleshooting, read [docs/SETUP.md](docs/SETUP.md).
 
-## First Project Setup
+## Primary Workflow
+
+1. Install Hunt Skill into the protocol repository.
+2. Optionally configure `SOLODIT_API_KEY` and `ALCHEMY_API_KEY`.
+3. Open Codex inside the target protocol repository.
+4. Say: `Use Hunt Skill on this repo.`
+5. Provide scope, docs, deployment context, or protocol explanations only when asked.
+
+Hunt handles `auditctl`, SQLite, graph retrieval, State Probes, Solodit research, chain detection, Tenderly, `cast`, RPC selection, and PoC handoff internally.
+
+## Advanced Setup Commands
 
 Define an exact source scope in `<project>/.audit/SCOPE_FILES.txt`, then run:
 
@@ -91,6 +117,50 @@ Use $hunt-skill to run a full audit of the pinned scope.
 ```
 
 The default mode is collaborative `CHAT`; a full repository audit starts only when explicitly requested.
+
+## How Hunt Skill Hunts
+
+Hunt keeps one active research question at a time:
+
+```text
+protocol brain
+-> protocol-specific invariant
+-> niche forbidden state
+-> one ACTIVE job
+-> backward trace from impact + forward trace from attacker
+-> selected dimensions: local state, accounting, lifecycle/order, boundaries, actors, integrations, live state, historical patterns
+-> exploratory State Probe
+-> observation
+-> hypothesis
+-> aggressive falsification
+-> CODE_VALIDATED
+-> automatic PoC handoff
+-> human chooses the next direction
+```
+
+It dynamically chooses relevant dimensions for the active impact instead of running every checklist.
+
+State Probes deliberately poke underexplored reachable behavior: `1 wei`, dust, threshold +/- 1, partial operations, repeated operations, equivalent paths such as `deposit(100)` versus `deposit(40); deposit(60)`, operation reordering, different actors, time boundaries, and realistic external-state changes. Unexpected results become `OBSERVATION`, not automatically a bug.
+
+Historical research is impact-driven: derive the needed attack primitive from the active job, query Solodit or historical sources, extract mechanism and prerequisites, then return to current code and verify independently. Historical matches generate attack ideas, not evidence.
+
+## Live-State Reads
+
+When live state matters, Hunt uses this hierarchy:
+
+1. Tenderly for simulations, traces, forks, state overrides, and historical execution when useful and available.
+2. `cast` for narrow state reads when Tenderly is unavailable, unsuitable, or unnecessary.
+3. Official explorers or deployment sources to cross-check addresses/configuration.
+
+For `cast`, Hunt resolves the chain automatically from audit context or the active job. If `ALCHEMY_API_KEY` is configured and Alchemy supports the chain, it uses the correct Alchemy endpoint. Otherwise it falls back to a public RPC for supported chains. The normal user should not configure RPC URL templates.
+
+Advanced live debugging:
+
+```bash
+python3 "$AUDITCTL" rpc-resolve --repo "$PROJECT" --chain base
+python3 "$AUDITCTL" cast-read --repo "$PROJECT" --chain base \
+  --operation call --address 0x... --signature "totalAssets()(uint256)"
+```
 
 ## Update An Installed Project
 
