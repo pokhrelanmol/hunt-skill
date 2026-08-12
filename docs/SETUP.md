@@ -108,6 +108,8 @@ The snapshot stores exact paths and SHA-256 hashes. Graph evidence and PoC hando
 
 Choose every applicable archetype. Hybrid protocols may use several:
 
+Available seed archetypes are `generic`, `vault`, `lending`, `bridge`, `dex`, `stablecoin`, `perps`, `liquid-staking`, and `governance`.
+
 ```bash
 python3 "$AUDITCTL" profile-set --repo "$PROJECT" \
   --name "Protocol Name" \

@@ -157,6 +157,126 @@
         "case_prompt": "Inspect position identity, fee checkpoints, donation, callback reentrancy, rounding, and collect/burn ordering.",
         "attacker_goal": "Claim principal or fees economically belonging to another liquidity provider."
       }
+    ],
+    "stablecoin": [
+      {
+        "key": "underbacked-mint",
+        "title": "Mint stable value against overstated or insufficient backing",
+        "invariant": "Every minted stablecoin remains backed by the required collateral value under the configured risk model.",
+        "case_prompt": "Trace collateral acceptance, oracle normalization, debt ceilings, mint ratios, stale prices, and governance-controlled parameters.",
+        "attacker_goal": "Mint stablecoins with less real collateral value than the protocol assumes."
+      },
+      {
+        "key": "redemption-mismatch",
+        "title": "Redeem for more or better collateral than fair backing allows",
+        "invariant": "Redemption preserves proportional claim on backing and cannot selectively drain the best collateral.",
+        "case_prompt": "Map redemption queues, collateral selection, PSM paths, fees, capacity limits, priority rules, and stress behavior.",
+        "attacker_goal": "Exit through redemption with excess value or leave remaining holders with worse backing."
+      },
+      {
+        "key": "peg-mechanism-divergence",
+        "title": "Peg mechanism amplifies rather than absorbs stress",
+        "invariant": "Mint, burn, redemption, liquidation, and stabilization flows converge toward the intended peg under bounded stress.",
+        "case_prompt": "Model sell pressure, liquidation timing, arbitrage incentives, mint/redeem cooldowns, caps, and emergency controls.",
+        "attacker_goal": "Trigger or profit from a feedback loop that pushes the stable asset farther from its peg."
+      },
+      {
+        "key": "stale-collateral-price",
+        "title": "Use stale collateral valuation to mint, redeem, or avoid liquidation",
+        "invariant": "Collateral valuation used for stablecoin decisions is fresh, correctly scaled, and manipulation-resistant.",
+        "case_prompt": "Inspect oracle freshness checks, decimals, fallback behavior, sequencer status, cached rates, and alternate price paths.",
+        "attacker_goal": "Transact against an old or mis-scaled price before the protocol observes the true backing value."
+      }
+    ],
+    "perps": [
+      {
+        "key": "oracle-amplified-pnl",
+        "title": "Amplify oracle error into incorrect PnL or liquidation",
+        "invariant": "Position PnL, margin, and liquidation decisions use fair mark/index prices within configured bounds.",
+        "case_prompt": "Trace mark price, index price, TWAP windows, stale oracle handling, spread caps, leverage, and liquidation triggers.",
+        "attacker_goal": "Move or exploit price input so leveraged PnL or liquidation transfers value incorrectly."
+      },
+      {
+        "key": "funding-rate-manipulation",
+        "title": "Manipulate funding or interest to drain opposing positions",
+        "invariant": "Funding and borrow rates respond to open interest imbalance without becoming cheaply gameable or divergent.",
+        "case_prompt": "Map open interest accounting, lazy updates, caps, time weighting, skew changes, settlement, and cross-market effects.",
+        "attacker_goal": "Create temporary imbalance or stale accounting that pays the attacker more funding than justified."
+      },
+      {
+        "key": "payout-insolvency",
+        "title": "Open positions whose maximum payout exceeds available liquidity",
+        "invariant": "Protocol liquidity and risk limits cover worst-case owed PnL under the allowed position set.",
+        "case_prompt": "Inspect max open interest, per-account limits, pool liquidity, unrealized PnL, ADL, bad debt handling, and limit bypass paths.",
+        "attacker_goal": "Create exposure the protocol cannot pay if price moves favorably for the attacker."
+      },
+      {
+        "key": "margin-accounting-desync",
+        "title": "Desynchronize margin, collateral, or cross-position accounting",
+        "invariant": "Account equity, collateral, PnL, fees, and liquidation state remain synchronized across all positions and markets.",
+        "case_prompt": "Trace partial close, collateral add/remove, isolated versus cross margin, fee accrual, liquidation, and account transfer paths.",
+        "attacker_goal": "Use one path to preserve usable margin while another path should have consumed or liquidated it."
+      }
+    ],
+    "liquid-staking": [
+      {
+        "key": "exchange-rate-misreport",
+        "title": "Misreport or delay staking exchange-rate updates",
+        "invariant": "Derivative token exchange rate reflects true underlying stake, rewards, fees, and slashing before dependent exits or transfers.",
+        "case_prompt": "Trace reward reporting, slash reporting, oracle authority, rate limits, update cadence, and consumers of cached exchange rate.",
+        "attacker_goal": "Enter or exit against a stale or manipulated staking derivative exchange rate."
+      },
+      {
+        "key": "withdrawal-queue-griefing",
+        "title": "Manipulate or grief the unstaking withdrawal queue",
+        "invariant": "Valid withdrawals progress in the intended order with bounded delay and no cheap priority manipulation.",
+        "case_prompt": "Inspect request size limits, batching, cancellation, claim windows, queue ordering, liquidity buffers, and spam economics.",
+        "attacker_goal": "Delay other users' exits or jump queue position at acceptable cost."
+      },
+      {
+        "key": "slashing-loss-socialization",
+        "title": "Exit before slashing or performance loss is fairly socialized",
+        "invariant": "Slashing and validator-performance losses are reflected before users can avoid their fair share.",
+        "case_prompt": "Map slash detection, report delay, withdrawal finalization, exchange-rate update order, and emergency pause behavior.",
+        "attacker_goal": "Withdraw at a pre-loss rate after the loss is economically known but before accounting reflects it."
+      },
+      {
+        "key": "validator-set-abuse",
+        "title": "Validator set or delegation control harms stakers",
+        "invariant": "Validator selection and delegation changes cannot route stake to unsafe operators without intended authorization and delay.",
+        "case_prompt": "Inspect validator add/remove authority, delegation limits, timelocks, performance accounting, and emergency migration paths.",
+        "attacker_goal": "Redirect, censor, or degrade validator-backed assets in a way users cannot avoid or recover from."
+      }
+    ],
+    "governance": [
+      {
+        "key": "flash-vote-capture",
+        "title": "Capture governance with temporary voting power",
+        "invariant": "Voting power used for proposals and votes is snapshotted so temporary borrowing cannot decide governance.",
+        "case_prompt": "Trace proposal threshold, vote power source, checkpoints, delegation, flash-loanability, quorum, and execution delay.",
+        "attacker_goal": "Borrow or briefly acquire voting power to pass or execute a malicious decision."
+      },
+      {
+        "key": "timelock-bypass",
+        "title": "Bypass or neutralize governance timelock protection",
+        "invariant": "Sensitive governance actions remain delayed long enough for users and guardians to react.",
+        "case_prompt": "Map proposer/executor roles, emergency paths, upgrade calls, queued calldata, cancellation, delay changes, and nested governance actions.",
+        "attacker_goal": "Execute a sensitive change before the intended warning or exit period has elapsed."
+      },
+      {
+        "key": "malicious-calldata",
+        "title": "Execute proposal calldata whose effects differ from governance intent",
+        "invariant": "Executed proposal actions match the reviewed target, value, calldata, and described protocol change.",
+        "case_prompt": "Inspect batching, delegatecall, proxy upgrades, calldata encoding, target allowlists, value transfers, and description/hash binding.",
+        "attacker_goal": "Hide or redirect a privileged action inside apparently benign governance execution."
+      },
+      {
+        "key": "guardian-or-admin-override",
+        "title": "Emergency or guardian role overrides normal governance",
+        "invariant": "Emergency powers are bounded to intended safety actions and cannot permanently seize value or governance control.",
+        "case_prompt": "List every guardian/admin action, pause/unpause asymmetry, upgrade authority, parameter scope, recovery paths, and revocation rules.",
+        "attacker_goal": "Use a privileged fast path to bypass governance for a non-emergency value-moving change."
+      }
     ]
   }
 }
