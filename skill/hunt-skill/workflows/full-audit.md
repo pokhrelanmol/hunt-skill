@@ -1,86 +1,150 @@
 # FULL AUDIT Workflow
 
-Run this workflow only after an explicit broad-audit request.
+FULL AUDIT is an orchestration mode, not a second bug-hunting methodology.
 
-## Phase 1: Scope Lock
+Use it only when the user explicitly asks for a full audit, complete audit, full scan, autonomous full audit, audit everything in scope, or audit the full codebase. Do not infer FULL AUDIT from ordinary requests like "hunt", "find bugs", "check this flow", or "go deeper"; those stay in normal interactive HUNT.
 
-**Entry:** The user explicitly requests a full audit.
+## Mode Start And Resume
 
-1. Verify repository, pinned commit, exact files, hashes, exclusions, dirty state, dependencies, and prior-audit corpus.
-2. Initialize SQLite and capture the exact source snapshot.
+**Entry:** The user explicitly requests full-scope autonomous coverage.
 
-**Exit:** Scope is reproducible and accepted.
+1. Run `mode-set --mode FULL_AUDIT`.
+2. Verify scope, pinned snapshot, dirty state, exclusions, docs, tests, and prior-audit corpus.
+3. On resume, run `mode-status`; if mode is `FULL_AUDIT`, continue the agenda instead of stopping after one job.
+4. Leave FULL AUDIT only when the audit completes, the user stops it, or the user explicitly switches back to `NORMAL_HUNT`.
 
-## Phase 2: Deterministic Index
+**Exit:** `.audit/CURRENT.md` makes the mode, active job, completed count, and next job obvious.
 
-**Entry:** Scope is locked.
+## Broader RECON For Agenda Construction
 
-1. Compile the clean pinned baseline where feasible.
-2. Extract symbols, inheritance, modifiers, state-changing entrypoints, unique call sites, exact argument bindings, return use, storage-rooted direct effects, runtime-target candidates, and source spans.
-3. Compute bounded shortest effective-effect paths and keep production paths isolated from supporting tests, mocks, handlers, harnesses, and scripts.
-4. Record extraction confidence and every unresolved item as `UNKNOWN`.
+FULL AUDIT needs broader coverage than interactive HUNT, but not irrelevant graph detail.
 
-**Exit:** Entrypoint call trees, argument flow, return use, runtime targets, and direct/effective effects are queryable without whole-repository prompts.
+Map enough of the pinned scope to identify:
 
-## Phase 3: Relationship Recon
+- state-changing entrypoints;
+- assets and value flows;
+- important state and coupled accounting relationships;
+- roles, permissions, and privileged sensitive decisions;
+- lifecycles, async steps, queues, cancellation, settlement, and finalization;
+- external integrations, live dependencies, and cross-chain state;
+- major protocol-specific invariants and forbidden states.
 
-**Entry:** Deterministic index exists.
+Use [recon.md](recon.md) for deterministic mapping and repair silent coverage gaps that would prevent agenda construction.
 
-1. Build authorization, state mutation, asset flow, lifecycle, callback, invariant, and external dependency views.
-2. Profile every applicable protocol archetype.
-3. Seed and refine protocol-specific impact goals.
-4. Run the complete RECON gate and repair all silent coverage gaps.
+## Build The Audit Agenda
 
-**Exit:** High-value decisions and bad states are mapped with evidence, and impact-driven HUNT is unblocked only for the passing pinned scope.
+Create concrete `JOB` rows from combinations of:
 
-## Phase 4: Bounded Sweep
+- protocol-specific invariants;
+- sensitive decisions;
+- major lifecycle transitions;
+- important coupled state;
+- external dependencies;
+- attacker-accessible surfaces.
 
-**Entry:** At least one impact goal is `READY`.
+Do not create generic category jobs such as "find reentrancy" or "find rounding bugs". Shape jobs as impact questions, for example:
 
-1. Enumerate reachable entrypoints once.
-2. Batch connected entrypoint-impact pairs by subsystem.
-3. Apply Hunt's built-in first-principles, state-consistency, accounting, lifecycle, actor, and integration lenses to each batch.
-4. Persist coverage and kill weak paths early.
+```text
+Can partial liquidation leave collateral/debt state inconsistent before a later borrow?
+Can an external collateral-value change be consumed by borrow before synchronization?
+Can withdrawal/cancellation restore collateral accounting incorrectly?
+```
 
-**Exit:** Each material surface has a disposition or named unresolved check.
+Deduplicate aggressively. Prioritize by:
 
-## Phase 5: Strategic Synthesis
+```text
+potential impact
+× attacker reachability
+× state sensitivity
+× integration complexity
+× novel or unexplored behavior
+```
 
-**Entry:** Sweep primitives exist.
+Prefer jobs involving asset movement, debt/collateral, share/accounting conversions, liquidation, withdrawals/redemptions, asynchronous state, privileged sensitive decisions, external integrations, cross-chain state, and coupled-state consistency.
 
-1. Consume all candidates, deduplicate root causes, and compose cross-function chains.
-2. Select a small set of high-impact investigations.
-3. Validate capability, reachability, state transition, blockers, economics, external assumptions, and strongest alternatives.
+## Coverage Tracking
 
-**Exit:** Only defensible hypotheses survive.
+Use the existing `coverage` table; do not create another database.
 
-## Phase 6: Novelty And Skeptic
+Track audit surfaces and important invariants/sensitive decisions with statuses such as `NEXT`, `ACTIVE`, `COVERED`, `BLOCKED`, and `NOT_APPLICABLE`.
 
-**Entry:** A hypothesis survives local validation.
+Coverage does not mean "source was read". A surface is `COVERED` only when meaningful protocol-specific invariants or forbidden states were investigated through the relevant dimensions. For example, liquidation coverage should include debt reduction, collateral seizure, partial liquidation, accounting synchronization, post-liquidation borrow/withdraw effects, rounding/boundaries where relevant, and external price interaction where relevant.
 
-1. Screen repository-known issues, similar audits, Solodit, and hack registry.
-2. Run an independent skeptical review on raw evidence.
-3. Promote only distinct, reportable root causes.
+## Process One ACTIVE Job At A Time
 
-**Exit:** Survivors are `CODE_VALIDATED`; duplicates and failures are recorded.
+Keep one `ACTIVE` job, a prioritized `NEXT` agenda, and `PARKED`/`DONE`/`BLOCKED` jobs.
 
-## Phase 7: Automatic Proof Handoff
+For each `ACTIVE` job, follow [hunt.md](hunt.md). `hunt.md` remains the single bug-hunting brain:
 
-**Entry:** At least one hypothesis is `CODE_VALIDATED`.
+```text
+niche invariant
+-> forbidden state
+-> sensitive consumer
+-> backward trace from impact + forward trace from attacker
+-> selected dimensions
+-> State Probe when useful
+-> observation
+-> hypothesis when justified
+-> aggressive falsification
+-> CODE_VALIDATED
+-> automatic PoC handoff
+```
 
-1. Present each survivor with the evidence bundle and current strongest blocker.
-2. Run `poc-handoff` for the selected survivor and follow the configured PoC skill.
-3. Ask the user only for missing proof environment or material context.
-4. Mark each survivor `POC_VALIDATED`, `POC_BLOCKED`, or `REJECTED` based on proof outcome.
+The only behavioral difference from interactive HUNT is the driver:
 
-**Exit:** Each selected lead is confirmed, blocked, or rejected by decisive evidence.
+- interactive HUNT resolves one job, reports, recommends the next direction, and stops for human steering;
+- FULL AUDIT resolves one job, persists the result and coverage, selects the next highest-value unresolved job, and continues automatically.
 
-## Phase 8: Reporting And Checkpoint
+## Child Jobs
 
-**Entry:** Proof and novelty gates are complete.
+If an observation reveals a new meaningful audit question, add it to `NEXT` with suitable priority. Do not abandon the current job prematurely.
 
-1. Write concise findings for confirmed novel issues.
-2. Preserve rejected paths and reopen conditions.
-3. Update compact control-plane Markdown and export JSONL when requested.
+Example:
 
-**Exit:** The audit can resume or be reviewed without replaying the full context.
+```text
+ACTIVE: Can partial liquidation corrupt debt accounting?
+OBSERVATION: cancelLiquidation() restores debt through a different path.
+NEXT: Can cancellation restore debt/collateral asymmetrically?
+```
+
+## Probes, Live State, And History
+
+Use State Probes systematically where tests, forks, or harnesses exist: dust, threshold +/- 1, partial operations, repeated actions, equivalent paths, operation reordering, different actors, time boundaries, and realistic external-state changes. Do not blindly fuzz everything.
+
+External integrations are part of coverage. Derive impact-driven jobs for each material dependency and verify real external behavior only when required.
+
+Historical research remains targeted: derive the required attack primitive for the current job, search Solodit or historical sources, extract relevant mechanisms, and verify locally. Do not dump broad historical findings into context.
+
+## Findings And Rejections
+
+If a hypothesis reaches `CODE_VALIDATED`, immediately run `poc-handoff` and follow the configured PoC skill. Do not postpone all PoCs until the end.
+
+Rejected jobs are valuable coverage. Store the question, checked paths, blocking reason, evidence, remaining uncertainty, and reopen condition before marking the job resolved.
+
+## Human Interaction
+
+Because the user requested autonomous full coverage, do not ask for approval between jobs. Ask only when required information materially blocks analysis: missing scope, proprietary docs, deployment information, RPC/fork environment, or ambiguous intended behavior.
+
+## Stop Condition
+
+Do not stop because a fixed number of jobs ran. Stop when:
+
+- all high-value protocol-specific surfaces are covered;
+- major invariants and sensitive decisions have been exercised;
+- material integrations have been investigated;
+- serious observations and hypotheses are resolved;
+- remaining jobs are low-value, duplicate, not applicable, or explicitly blocked by unavailable information.
+
+Report unresolved coverage instead of inventing certainty.
+
+## Final Report
+
+End with:
+
+- scope and snapshot;
+- coverage summary;
+- jobs investigated;
+- validated findings;
+- rejected high-value hypotheses;
+- unresolved assumptions or blocked surfaces;
+- residual risk and areas not fully covered.

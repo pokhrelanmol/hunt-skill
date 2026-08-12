@@ -16,7 +16,7 @@ python3 "${SKILL_ROOT}/scripts/auditctl.py" <command> --repo <target>
 ## Non-Negotiable Rules
 
 1. Keep code as the primary source of truth. Label consequential claims `VERIFIED`, `INFERRED`, or `UNKNOWN`.
-2. Default to `CHAT`. Never begin `FULL AUDIT` unless the user explicitly requests a broad audit.
+2. Default to `CHAT`/`NORMAL_HUNT`. Never begin `FULL AUDIT` unless the user explicitly requests a full audit, complete audit, full scan, autonomous full audit, audit everything in scope, or audit the full codebase.
 3. Hunt both directions: start from reachable primitives and ask what they can break; start from meaningful impacts and search backward for reachable flows.
 4. Build protocol-specific impact goals. A generic vault/lending/bridge checklist is only a seed and cannot be marked `READY` until tied to this protocol's invariant, decision point, bad state, attacker goal, and candidate primitives.
 5. Normal interactive HUNT needs sufficient broad RECON plus deep deterministic graph/context coverage for the active job's relevant surface. Full-audit mode may require broader full-scope deterministic gates. Missing or unresolved information must be represented explicitly as `UNKNOWN`, never silently omitted.
@@ -27,7 +27,7 @@ python3 "${SKILL_ROOT}/scripts/auditctl.py" <command> --repo <target>
 10. Use the installed Tenderly skill first for simulations, traces, forks, and state overrides. Use `cast` for narrow read-only facts. Pin chain, block, address, code hash when available, and observation time.
 11. Once a hypothesis is `CODE_VALIDATED`, PoC work is part of the same research question: run `poc-handoff`, read the configured dedicated PoC skill's `SKILL.md`, and attempt the strongest practical proof. Ask the user only when the PoC environment or material data is missing.
 12. Do not modify production contracts during setup, reconnaissance, or indexing.
-13. Same research question means autonomous work; a new research direction requires explaining the recommendation and asking the user before switching.
+13. In `NORMAL_HUNT`, the same research question means autonomous work; a new research direction requires explaining the recommendation and asking the user before switching. In `FULL_AUDIT`, automatically continue to the next highest-value unresolved agenda job until the stop condition in [workflows/full-audit.md](workflows/full-audit.md) is met.
 14. Treat user-provided protocol context as useful but unverified. Store it as `USER_CONTEXT`, link likely affected records, verify before relying on it, and check whether it changes active jobs, rejected hypotheses, or parked directions.
 
 ## Mode Router
@@ -36,12 +36,12 @@ python3 "${SKILL_ROOT}/scripts/auditctl.py" <command> --repo <target>
 |---|---|---|
 | Question, confusion, attack idea, continuation | `CHAT` | [workflows/chat.md](workflows/chat.md) |
 | Architecture, relationships, value/state flow | `RECON` | [workflows/recon.md](workflows/recon.md) |
-| Concrete module, invariant, flow, or impact after RECON gate | `HUNT` | [workflows/hunt.md](workflows/hunt.md) |
+| Concrete module, invariant, flow, or impact after RECON gate | `NORMAL_HUNT` / `HUNT` | [workflows/hunt.md](workflows/hunt.md) |
 | One hypothesis requiring falsification | `VALIDATE` | [workflows/validate.md](workflows/validate.md) |
 | Automatic proof handoff or final write-up | `PROVE` | [workflows/prove.md](workflows/prove.md) |
-| Explicit repository-wide audit | `FULL AUDIT` | [workflows/full-audit.md](workflows/full-audit.md) |
+| Explicit full audit, complete audit, full scan, audit everything in scope, audit the full codebase, autonomous full audit | `FULL_AUDIT` / `FULL AUDIT` | [workflows/full-audit.md](workflows/full-audit.md) |
 
-If intent is ambiguous, answer in `CHAT` and name the next discriminating check.
+If intent is ambiguous, answer in `CHAT` or `NORMAL_HUNT` and name the next discriminating check. Do not infer `FULL_AUDIT` from "hunt", "find bugs", "scan this function", "look at this protocol", or "go deeper".
 
 ## Universal Phases
 
@@ -55,7 +55,8 @@ If intent is ambiguous, answer in `CHAT` and name the next discriminating check.
 4. Initialize with [workflows/sqlite-setup.md](workflows/sqlite-setup.md) only when needed.
 5. If this is a new audit, use existing RECON/profile/snapshot/graph mechanisms to establish architecture, actors, assets, value flow, lifecycles, integrations, intended behavior, and material invariants before hunting.
 6. Ask the user only for material missing context that docs/code cannot establish; record non-material unknowns as `UNKNOWN` and continue.
-7. If the requested mode is `HUNT`, run [RECON](workflows/recon.md) first for broad protocol context, then deepen local graph coverage only for the chosen active job.
+7. If the requested mode is `NORMAL_HUNT`, run [RECON](workflows/recon.md) first for broad protocol context, then deepen local graph coverage only for the chosen active job.
+8. If the requested mode is `FULL_AUDIT`, run `mode-set --mode FULL_AUDIT`, then follow [workflows/full-audit.md](workflows/full-audit.md).
 
 **Exit:** The active source snapshot and audit mode are explicit.
 

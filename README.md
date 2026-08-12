@@ -71,6 +71,56 @@ If you need optional Solodit, Alchemy, update, or scope commands, go to [docs/SE
 
 Hunt handles `auditctl`, SQLite, graph retrieval, State Probes, Solodit research, chain detection, Tenderly, `cast`, RPC selection, and PoC handoff internally.
 
+## Two Modes
+
+### Interactive Hunt
+
+Interactive Hunt is the default. It is best for human + AI collaborative research:
+
+```text
+one ACTIVE job
+-> deep investigation with Hunt methodology
+-> conclusion
+-> recommend next direction
+-> stop for human steering
+```
+
+Normal requests like `hunt`, `look for bugs`, `check this flow`, `investigate this`, or `go deeper` use Interactive Hunt. Hunt should not silently switch into full-codebase audit mode.
+
+### Full Audit
+
+Full Audit activates only when explicitly requested with language like:
+
+```text
+full audit
+audit the full codebase
+perform a complete audit
+run a full audit scan
+audit everything in scope
+perform an autonomous full audit
+```
+
+Full Audit does not use a weaker generic scanner. It repeatedly applies the same impact-driven Hunt methodology autonomously across the relevant audit surface:
+
+```text
+full-scope recon
+-> build impact-driven audit agenda
+-> run one ACTIVE job through hunt.md
+-> persist result and coverage
+-> automatically select the next highest-value unresolved job
+-> continue until meaningful coverage is complete or explicitly blocked
+-> final coverage + findings report
+```
+
+Mode is persisted in the project audit state so `continue` resumes correctly. In `.audit/CURRENT.md`, Full Audit should be obvious:
+
+```text
+Mode: FULL_AUDIT
+Active job: JOB-017
+Completed jobs: 16
+Next: JOB-018
+```
+
 ## Built-In Methodology vs External Capabilities
 
 Hunt does not depend on a pile of reasoning agents. The core methodology is built into this skill:

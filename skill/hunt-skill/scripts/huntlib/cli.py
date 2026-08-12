@@ -50,6 +50,8 @@ HYPOTHESIS_STATUSES = {
     "REJECTED",
 }
 JOB_STATUSES = {"ACTIVE", "NEXT", "PARKED", "DONE", "BLOCKED"}
+HUNT_MODES = {"NORMAL_HUNT", "FULL_AUDIT"}
+COVERAGE_STATUSES = {"ACTIVE", "NEXT", "COVERED", "BLOCKED", "NOT_APPLICABLE"}
 RELATION_TYPES = {
     "DECLARES",
     "INHERITS",
@@ -325,7 +327,7 @@ CONTROL_FILES = {
 
 Protocol: TODO
 Scope snapshot: not captured
-Active mode: CHAT
+Active mode: NORMAL_HUNT
 Active leads: none
 Current focus: initialize protocol profile and exact scope
 """,
@@ -335,7 +337,7 @@ Keep only stable, verified architecture, roles, assets, accounting, invariants, 
 """,
     "CURRENT.md": """# Current Audit State
 
-Mode: CHAT
+Mode: NORMAL_HUNT
 Focus: setup
 Next discriminating check: capture exact scope and create protocol profile
 """,
@@ -1235,6 +1237,130 @@ def cmd_job_upsert(args) -> None:
     emit({"ok": True, "id": job_id, "status": status})
 
 
+def active_job_summary(conn) -> dict[str, Any]:
+    counts = {
+        row["status"]: row["count"]
+        for row in conn.execute(
+            "SELECT status, count(*) AS count FROM investigations WHERE mode='JOB' GROUP BY status"
+        )
+    }
+    active = conn.execute(
+        "SELECT id, goal FROM investigations WHERE mode='JOB' AND status='ACTIVE' ORDER BY started_at DESC LIMIT 1"
+    ).fetchone()
+    next_job = conn.execute(
+        "SELECT id, goal FROM investigations WHERE mode='JOB' AND status='NEXT' ORDER BY started_at ASC LIMIT 1"
+    ).fetchone()
+    return {
+        "active_job": dict(active) if active else None,
+        "next_job": dict(next_job) if next_job else None,
+        "completed_jobs": counts.get("DONE", 0),
+        "job_counts": counts,
+    }
+
+
+def write_current_state(repo: Path, mode: str, summary: dict[str, Any]) -> None:
+    audit_dir = repo / ".audit"
+    audit_dir.mkdir(exist_ok=True)
+    active = summary.get("active_job")
+    next_job = summary.get("next_job")
+    lines = [
+        "# Current Audit State",
+        "",
+        f"Mode: {mode}",
+        f"Active job: {active['id'] if active else 'none'}",
+        f"Completed jobs: {summary.get('completed_jobs', 0)}",
+        f"Next: {next_job['id'] if next_job else 'none'}",
+        f"Updated: {utcnow()}",
+        "",
+    ]
+    if active:
+        lines.extend(["Active goal:", active["goal"], ""])
+    if next_job:
+        lines.extend(["Next goal:", next_job["goal"], ""])
+    (audit_dir / "CURRENT.md").write_text("\n".join(lines), encoding="utf-8")
+
+
+def cmd_mode_set(args) -> None:
+    repo = repo_path(args)
+    mode = require_status(args.mode, HUNT_MODES, "hunt mode")
+    conn = connect(repo)
+    now = utcnow()
+    conn.execute(
+        "INSERT INTO meta(key, value) VALUES('hunt_mode', ?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        (mode,),
+    )
+    conn.execute(
+        "INSERT INTO meta(key, value) VALUES('hunt_mode_updated_at', ?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        (now,),
+    )
+    conn.commit()
+    summary = active_job_summary(conn)
+    conn.close()
+    write_current_state(repo, mode, summary)
+    emit({"ok": True, "mode": mode, **summary})
+
+
+def cmd_mode_status(args) -> None:
+    repo = repo_path(args)
+    conn = connect(repo)
+    mode_row = conn.execute("SELECT value FROM meta WHERE key='hunt_mode'").fetchone()
+    mode = mode_row["value"] if mode_row else "NORMAL_HUNT"
+    coverage_counts = {
+        row["status"]: row["count"]
+        for row in conn.execute("SELECT status, count(*) AS count FROM coverage GROUP BY status")
+    }
+    summary = active_job_summary(conn)
+    conn.close()
+    emit({"ok": True, "mode": mode, "coverage_counts": coverage_counts, **summary})
+
+
+def cmd_coverage_upsert(args) -> None:
+    conn = connect(repo_path(args))
+    status = require_status(args.status, COVERAGE_STATUSES, "coverage status")
+    now = utcnow()
+    conn.execute(
+        "INSERT INTO coverage(target_id, lens, status, investigation_id, last_seen) "
+        "VALUES(?, ?, ?, ?, ?) ON CONFLICT(target_id, lens) DO UPDATE SET "
+        "status=excluded.status, investigation_id=excluded.investigation_id, last_seen=excluded.last_seen",
+        (args.target_id, args.lens, status, args.investigation_id, now),
+    )
+    conn.commit()
+    conn.close()
+    emit(
+        {
+            "ok": True,
+            "target_id": args.target_id,
+            "lens": args.lens,
+            "status": status,
+            "investigation_id": args.investigation_id,
+        }
+    )
+
+
+def cmd_coverage_list(args) -> None:
+    conn = connect(repo_path(args))
+    clauses: list[str] = []
+    params: list[Any] = []
+    if args.status:
+        status = require_status(args.status, COVERAGE_STATUSES, "coverage status")
+        clauses.append("status=?")
+        params.append(status)
+    if args.lens:
+        clauses.append("lens=?")
+        params.append(args.lens)
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    rows = as_dicts(
+        conn.execute(
+            f"SELECT * FROM coverage {where} ORDER BY status, target_id, lens LIMIT ?",
+            (*params, args.limit),
+        )
+    )
+    conn.close()
+    emit({"ok": True, "count": len(rows), "coverage": rows})
+
+
 def cmd_observation_add(args) -> None:
     conn = connect(repo_path(args))
     fact_id = args.id or stable_id("fact:observation", f"{args.job_id}\0{args.statement}")
@@ -1781,6 +1907,15 @@ def build_parser() -> argparse.ArgumentParser:
     context_add.add_argument("--limit", type=int, default=10)
     context_add.set_defaults(func=cmd_context_add)
 
+    mode_set = sub.add_parser("mode-set", help="persist NORMAL_HUNT or FULL_AUDIT mode and refresh CURRENT.md")
+    add_repo(mode_set)
+    mode_set.add_argument("--mode", choices=sorted(HUNT_MODES), required=True)
+    mode_set.set_defaults(func=cmd_mode_set)
+
+    mode_status = sub.add_parser("mode-status", help="show persisted hunt mode, active job, agenda, and coverage counts")
+    add_repo(mode_status)
+    mode_status.set_defaults(func=cmd_mode_status)
+
     job = sub.add_parser("job-upsert", help="create or update one meaningful research job")
     add_repo(job)
     job.add_argument("--id")
@@ -1788,6 +1923,21 @@ def build_parser() -> argparse.ArgumentParser:
     job.add_argument("--status", default="NEXT")
     job.add_argument("--result")
     job.set_defaults(func=cmd_job_upsert)
+
+    coverage = sub.add_parser("coverage-upsert", help="record full-audit surface coverage status")
+    add_repo(coverage)
+    coverage.add_argument("--target-id", required=True)
+    coverage.add_argument("--lens", default="full-audit")
+    coverage.add_argument("--status", choices=sorted(COVERAGE_STATUSES), required=True)
+    coverage.add_argument("--investigation-id")
+    coverage.set_defaults(func=cmd_coverage_upsert)
+
+    coverage_list = sub.add_parser("coverage-list", help="list bounded full-audit coverage rows")
+    add_repo(coverage_list)
+    coverage_list.add_argument("--status", choices=sorted(COVERAGE_STATUSES))
+    coverage_list.add_argument("--lens")
+    coverage_list.add_argument("--limit", type=int, default=50)
+    coverage_list.set_defaults(func=cmd_coverage_list)
 
     observation = sub.add_parser("observation-add", help="record a job-scoped observation")
     add_repo(observation)

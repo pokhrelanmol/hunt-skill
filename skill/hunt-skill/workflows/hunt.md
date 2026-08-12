@@ -1,6 +1,6 @@
 # HUNT Workflow
 
-HUNT is one meaningful `ACTIVE` job attacking one protocol-specific impact, not a category scan or batch queue. Work autonomously inside the current research question; stop before switching to an independent direction.
+HUNT is one meaningful `ACTIVE` job attacking one protocol-specific impact, not a category scan or batch queue. Work autonomously inside the current research question. In normal interactive HUNT, stop before switching to an independent direction; in FULL AUDIT, [full-audit.md](full-audit.md) may feed the next agenda job into this same workflow.
 
 ## Entry Gate
 
@@ -36,7 +36,7 @@ Before tracing, make the job precise:
 8. Form a hypothesis only when a concrete chain connects attacker -> reachable action -> local/external state -> bad representation -> sensitive consumer -> forbidden state -> impact.
 9. Falsify serious hypotheses across all material dimensions: reachability, permissions, ordering, sync/correction, external reachability, live config, timing, liquidity/capital, actual impact, victim requirements, intended behavior, and known/duplicate issues.
 10. Conclude the `ACTIVE` job as `DONE`, `BLOCKED`, or with a linked hypothesis.
-11. Persist the result, explain what was learned/rejected/uncertain/suspicious, recommend the next highest-value direction, and stop for human steering.
+11. Persist the result, explain what was learned/rejected/uncertain/suspicious, recommend the next highest-value direction, and stop for human steering unless the persisted mode is `FULL_AUDIT`.
 
 ## Pattern Fallback
 
