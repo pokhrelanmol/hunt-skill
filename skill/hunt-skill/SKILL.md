@@ -20,16 +20,18 @@ python3 "${SKILL_ROOT}/scripts/auditctl.py" <command> --repo <target>
 3. Hunt both directions: start from reachable primitives and ask what they can break; start from meaningful impacts and search backward for reachable flows.
 4. Build protocol-specific impact goals. A generic vault/lending/bridge checklist is only a seed and cannot be marked `READY` until tied to this protocol's invariant, decision point, bad state, attacker goal, and candidate primitives.
 5. Build a detailed, useful SQLite graph before hunting. The graph is not a formality: it must let the agent answer how attacker entrypoints, guards, calls, arguments, returns, storage reads/writes, token/accounting effects, external integrations, and later sensitive consumers connect for the active impact. If the graph cannot answer the active job's reachability/effect questions, stop and deepen RECON instead of hunting from source-reading memory.
-6. Prefer compiler AST/build artifacts and deterministic local tools for mechanical relationships. Never ask a model to reconstruct a transitive call graph when compiler-resolved evidence is available.
-7. Normal interactive HUNT needs sufficient broad RECON plus deep deterministic graph/context coverage for the active job's relevant surface. Full-audit mode requires broader graph coverage for the agenda. Missing or unresolved information must be represented explicitly as `UNKNOWN`, never silently omitted.
-8. Treat every lead as an allegation. Trace reachability, state mutation, later consumption, blockers, economics, live configuration, and the strongest safe explanation.
-9. Use historical pattern matching in two bounded modes: as fallback inspiration when code-led hunting stalls, and as validation/novelty screening for a concrete finding. A match creates a local question; it never proves the current protocol is vulnerable.
-10. Use bounded SQLite queries. Do not load the complete database, all checkpoints, or large Markdown notebooks into context.
-11. Use the installed Tenderly skill first for simulations, traces, forks, and state overrides. Use `cast` for narrow read-only facts. Pin chain, block, address, code hash when available, and observation time.
-12. Once a hypothesis is `CODE_VALIDATED`, PoC work is part of the same research question: run `poc-handoff`, read the configured dedicated PoC skill's `SKILL.md`, and attempt the strongest practical proof. Ask the user only when the PoC environment or material data is missing.
-13. Do not modify production contracts during setup, reconnaissance, or indexing.
-14. In `NORMAL_HUNT`, the same research question means autonomous work; a new research direction requires explaining the recommendation and asking the user before switching. In `FULL_AUDIT`, automatically continue to the next highest-value unresolved agenda job until the stop condition in [workflows/full-audit.md](workflows/full-audit.md) is met.
-15. Treat user-provided protocol context as useful but unverified. Store it as `USER_CONTEXT`, link likely affected records, verify before relying on it, and check whether it changes active jobs, rejected hypotheses, or parked directions.
+6. Hunt attacker-composition, not isolated primitives. Treat every successful primitive as a capability fragment that may satisfy another prerequisite. Missing capital, liquidity, inventory, permission, timing, identity, or external state is a subgoal to source or falsify, not an immediate rejection.
+7. Measure economics across the complete lifecycle. A leg may lose money, an intermediate asset/right may lack external liquidity, and temporary state may later restore; none of that is a kill reason until every protocol/integration consumer, irreversible commitment, repayment/restoration path, amplification route, and final attacker balance sheet has been checked.
+8. Prefer compiler AST/build artifacts and deterministic local tools for mechanical relationships. Never ask a model to reconstruct a transitive call graph when compiler-resolved evidence is available.
+9. Normal interactive HUNT needs sufficient broad RECON plus deep deterministic graph/context coverage for the active job's relevant surface. Full-audit mode requires broader graph coverage for the agenda. Missing or unresolved information must be represented explicitly as `UNKNOWN`, never silently omitted.
+10. Treat every lead as an allegation. Trace reachability, state mutation, later consumption, blockers, economics, live configuration, and the strongest safe explanation.
+11. Use historical pattern matching in two bounded modes: as fallback inspiration when code-led hunting stalls, and as validation/novelty screening for a concrete finding. A match creates a local question; it never proves the current protocol is vulnerable.
+12. Use bounded SQLite queries. Do not load the complete database, all checkpoints, or large Markdown notebooks into context.
+13. Use the installed Tenderly skill first for simulations, traces, forks, and state overrides. Use `cast` for narrow read-only facts. Pin chain, block, address, code hash when available, and observation time.
+14. Once a hypothesis is `CODE_VALIDATED`, PoC work is part of the same research question: run `poc-handoff`, read the configured dedicated PoC skill's `SKILL.md`, and attempt the strongest practical proof. Ask the user only when the PoC environment or material data is missing.
+15. Do not modify production contracts during setup, reconnaissance, or indexing.
+16. In `NORMAL_HUNT`, the same research question means autonomous work; a new research direction requires explaining the recommendation and asking the user before switching. In `FULL_AUDIT`, automatically continue to the next highest-value unresolved agenda job until the stop condition in [workflows/full-audit.md](workflows/full-audit.md) is met.
+17. Treat user-provided protocol context as useful but unverified. Store it as `USER_CONTEXT`, link likely affected records, verify before relying on it, and check whether it changes active jobs, rejected hypotheses, or parked directions.
 
 ## Mode Router
 
@@ -85,8 +87,9 @@ If intent is ambiguous, answer in `CHAT` or `NORMAL_HUNT` and name the next disc
 5. Store surprising-but-not-yet-buggy results as `OBSERVATION` or `STATE_PROBE`, linked to the current job.
 6. Alternate first-principles and state-consistency lenses.
 7. Inspect cross-function, cross-contract, cross-transaction, and external-protocol composition.
-8. For live-dependent claims, follow [references/live-investigation.md](references/live-investigation.md).
-9. If bounded code-led exploration produces no useful lead, run one impact-anchored historical pattern pass, convert matches into local hypotheses, and retrace them from current code.
+8. After any primitive yields an asset, right, entitlement, accounting representation, temporary state, execution control, or reusable position, search the graph for every later protocol or integration consumer that accepts it as valuable or authoritative.
+9. For live-dependent claims, follow [references/live-investigation.md](references/live-investigation.md).
+10. If bounded code-led exploration produces no useful lead, run one impact-anchored historical pattern pass, convert matches into local hypotheses, and retrace them from current code.
 
 **Exit:** The idea is rejected, blocked with one missing fact, or represented as a linked hypothesis with a concrete next check.
 
@@ -123,6 +126,11 @@ If intent is ambiguous, answer in `CHAT` or `NORMAL_HUNT` and name the next disc
 - "The user said it, so it is evidence." User context starts as `UNKNOWN` until independently verified.
 - "The current question is done, so start a new one." Recommend the next direction and wait for the user's steering.
 - "More Markdown is easier." Store detail in SQLite and retrieve only selected rows.
+- "The first primitive is not profitable." It may be a capability fragment; find whether another consumer, identity, transaction, integration, or later lifecycle step can consume it.
+- "The attacker needs capital or inventory." Treat the missing resource as a subgoal; check temporary, protocol-native, external, iterative, and output-derived sources before rejecting.
+- "The intermediate asset has no market." External liquidity is unnecessary if the protocol itself consumes the asset, right, entitlement, or accounting representation as value.
+- "Temporary state is restored later." Restoration is not a kill reason if an irreversible transfer, entitlement, accounting commitment, or liability change occurs before restoration.
+- "Each weakness is individually insufficient." Multiple insufficient fragments can compose into one profitable lifecycle; reject only after the composed balance sheet and missing edges are falsified.
 
 ## Reference Index
 
@@ -144,6 +152,7 @@ If intent is ambiguous, answer in `CHAT` or `NORMAL_HUNT` and name the next disc
 - Runtime dispatch candidates are separated from live-confirmed implementations, and supporting test code does not contaminate production paths.
 - Every important relation and claim has status, confidence, and evidence or an explicit unknown.
 - Impact goals combine a protocol invariant with a concrete protocol case.
+- Economic jobs preserve capability fragments, prerequisite subgoals, irreversible consumers, amplification paths, and full-lifecycle attacker balance sheets before rejecting.
 - Retrieval remains bounded to relevant rows and source spans.
 - Rejected paths preserve kill evidence and reopen conditions.
 - Novelty is checked before reporting.

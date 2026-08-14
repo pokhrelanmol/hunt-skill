@@ -43,6 +43,7 @@ Create concrete `JOB` rows from combinations of:
 - important coupled state;
 - external dependencies;
 - attacker-accessible surfaces.
+- capability fragments or missing prerequisites discovered while resolving earlier jobs.
 
 Each agenda job must be linked to graph records before it becomes `ACTIVE`: the impact/invariant, the sensitive consumer or state root, relevant attacker entrypoint or explicit `UNKNOWN`, and any known external dependency. A job without these links is not ready for hunting; leave it `NEXT` or `BLOCKED` with the missing graph work.
 
@@ -110,6 +111,8 @@ ACTIVE: Can partial liquidation corrupt debt accounting?
 OBSERVATION: cancelLiquidation() restores debt through a different path.
 NEXT: Can cancellation restore debt/collateral asymmetrically?
 ```
+
+Also add child jobs when a primitive produces a meaningful capability fragment, an initially missing resource becomes sourceable, or another subsystem may consume an intermediate representation. Keep the fragment as `OBSERVATION`/`UNKNOWN` until a complete lifecycle is proven.
 
 ## Probes, Live State, And History
 

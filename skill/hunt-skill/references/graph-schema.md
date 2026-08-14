@@ -58,6 +58,9 @@ The graph must be query-useful, not ceremonial. Do not create a few placeholder 
 - which functions write or derive those values;
 - which external systems are trusted;
 - which path connects an attacker action to the local/external state and then to the sensitive consumer;
+- which resources, permissions, identities, timing controls, accounting representations, temporary liabilities, and unwind requirements are prerequisites for the terminal attacker outcome;
+- which primitives produce capability fragments and which later operations consume them;
+- which irreversible consumers commit value, entitlement, liability, or accounting before correction/restoration;
 - which exact source/evidence anchors support or limit each edge.
 
 For every scoped function, retain compact queryable facts for:
@@ -79,8 +82,10 @@ Before HUNT or FULL_AUDIT job execution, query the graph. A useful active-job gr
 
 - `JOB` linked to the impact/invariant being tested;
 - graph nodes for relevant attacker entrypoints, sensitive consumers, state roots, roles/assets, and external dependencies;
+- nodes or facts for attacker-required resources, resource-producing primitives, resource-consuming operations, irreversible consumers, amplification paths, temporary liabilities, repayment/restoration/unwind paths, and explicit `UNKNOWN` prerequisites;
 - `CALLS`/dispatch edges for relevant local paths;
 - `READS`, `WRITES`, `DERIVES_FROM`, `TRANSFERS`, `MINTS`, `BURNS`, `DEPOSITS`, `WITHDRAWS`, `BORROWS`, `REPAYS`, `LIQUIDATES`, or namespaced effect edges as applicable;
+- existing relation types for prerequisite composition where possible: `DERIVES_FROM` for produced representations, `TRUSTS` for consumers relying on a representation, `AUTHORIZES` for permissioning, lifecycle/effect relations for asset or liability movement, and an explicit `UNKNOWN` fact when the missing edge is unresolved;
 - evidence on verified graph edges;
 - explicit `UNKNOWN` records for unresolved dispatch, missing build artifacts, assembly, dynamic targets, or unverified external behavior.
 
