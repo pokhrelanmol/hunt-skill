@@ -10,19 +10,15 @@ Promote a hypothesis to `CODE_VALIDATED` only when all material elements are est
 4. Broken invariant: precise protocol expectation that fails.
 5. Blocking checks: guards, reverts, sync, caps, slippage, downstream corrections.
 6. Impact path: concrete route from bad state to meaningful loss or denial of service.
-7. Composition path: every capability fragment, missing prerequisite, consumer, amplification step, repayment/restoration/unwind, and irreversible commitment needed to connect the first primitive to final impact.
-8. Full-lifecycle balance sheet: assets acquired, liabilities created or avoided, temporary capital, protocol/victim value released, intermediate representations created and consumed, fees, slippage, penalties, repayment, restoration, unwind, final attacker profit, and protocol/victim loss.
-9. Feasibility: liquidity, ordering, fees, price impact, timing, profitability/cost across the complete lifecycle, not per isolated leg.
-10. External assumptions: token, oracle, bridge, dependency, deployment, and configuration evidence.
-11. Strongest alternative explanation: why behavior is not safe, intentional, or harmless.
+7. Feasibility: liquidity, ordering, fees, price impact, timing, profitability/cost.
+8. External assumptions: token, oracle, bridge, dependency, deployment, and configuration evidence.
+9. Strongest alternative explanation: why behavior is not safe, intentional, or harmless.
 
 Keep the issue as a lead when a material item is unknown. Reject it immediately when an item is disproven.
 
-Do not reject merely because an intermediate fragment lacks external liquidity, one leg is loss-making, initial capital is missing, or state is later restored. Reject only when the relevant consumer search, prerequisite sourcing routes, irreversible-consumer analysis, and lifecycle balance sheet are falsified with evidence.
-
 ## Independent Skeptic Pass
 
-Give the skeptic the claim and raw evidence, not the original persuasive narrative. Ask for the strongest reject reason, hidden checks, prerequisite realism, capability-fragment composition, downstream consumers, irreversible commitments, state persistence, lifecycle economics, known-root-cause overlap, and whether the evidence proves the whole attacker lifecycle.
+Give the skeptic the claim and raw evidence, not the original persuasive narrative. Ask for the strongest reject reason, hidden checks, prerequisite realism, state persistence, economics, known-root-cause overlap, and whether the evidence proves the whole attacker lifecycle.
 
 ## Novelty Gate
 
