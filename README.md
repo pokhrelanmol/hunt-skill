@@ -15,6 +15,7 @@ For installation, upgrades, scope setup, and troubleshooting, use [docs/SETUP.md
 - Code and pinned configuration remain the primary evidence.
 - Impact catalogs combine protocol archetypes with concrete protocol-specific invariants and bad states.
 - Cross-function, cross-contract, cross-transaction, and external-protocol relationships are queryable without loading a large Markdown notebook.
+- Edge-case leads come from reachable intersections: Hunt checks whether distinct identities, modes, lifecycle stages, or domains collapse into the same key, resource, proof, callback, cache, or accepted condition before a sensitive consumer acts.
 - Pattern matching is used as bounded fallback inspiration when code-led hunting stalls, then again to validate novelty and known-issue status.
 - Repository audits, similar audits, Solodit, and the EVM Hack Registry must be checked before reporting.
 - Tenderly is preferred for simulations, traces, forks, and state overrides when its skill is available.

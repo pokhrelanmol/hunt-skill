@@ -16,6 +16,8 @@ Promote a hypothesis to `CODE_VALIDATED` only when all material elements are est
 
 Keep the issue as a lead when a material item is unknown. Reject it immediately when an item is disproven.
 
+For context-collision leads, “rare” is not kill evidence. Preserve the lead when two distinct logical contexts can plausibly share an accepted representation or when a producer's result can mean something different from what a sensitive consumer assumes. Promote only after the collision/mismatch, attacker reachability, consumer acceptance, and meaningful consequence are established. Reject when code or deployment constraints make the intersection unreachable, the consumer rebinds every material context dimension, the effect is harmless, or a reliable recovery path prevents impact.
+
 ## Independent Skeptic Pass
 
 Give the skeptic the claim and raw evidence, not the original persuasive narrative. Ask for the strongest reject reason, hidden checks, prerequisite realism, state persistence, economics, known-root-cause overlap, and whether the evidence proves the whole attacker lifecycle.

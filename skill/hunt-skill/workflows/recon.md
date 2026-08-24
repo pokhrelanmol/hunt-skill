@@ -25,7 +25,7 @@ RECON has two depths: basic global context for normal interactive hunting, and d
 
 1. Build the graph to be useful for the selected impact/job, not merely present. The graph must support real queries such as "which attacker entrypoints can reach this sensitive consumer?", "which state does this decision trust?", "who writes that state?", and "which later operation consumes the changed representation?"
 2. Compile the pinned baseline when feasible and use compiler AST/build artifacts for declarations, overloads, modifiers, source spans, and resolvable calls.
-3. Create nodes for relevant contracts, external/public functions, internal functions, modifiers, storage/state roots, roles, assets, lifecycle states, external systems, tests/harness anchors, invariants, impacts, and the `ACTIVE` job.
+3. Create nodes for relevant contracts, external/public functions, internal functions, modifiers, storage/state roots, roles, assets, lifecycle states, external systems, logical identities/instances, shared resource keys, produced artifacts when material, tests/harness anchors, invariants, impacts, and the `ACTIVE` job.
 4. Give every invocation its own call-site identity, including repeated and nested calls on the same line.
 5. For relevant call sites, record caller, declared callee, dispatch kind, condition, argument expression, callee parameter binding, argument origin IDs, and return use.
 6. Represent modifiers, `using for`, tuple returns, callbacks, hooks, internal/external/library/super/virtual/interface/low-level/delegate/static/dynamic dispatch, and runtime target candidates when relevant to the job.
@@ -45,8 +45,9 @@ RECON has two depths: basic global context for normal interactive hunting, and d
 ## Phase 5: Security Views
 
 1. Map authorization, asset flow, state mutation, lifecycle, callbacks, external dependencies, and invariants for the selected surface.
-2. Link active jobs to relevant impacts, invariants, sensitive consumers, attacker entrypoints, state roots, effect paths, assumptions, observations, hypotheses, known findings, and live evidence where useful.
-3. Refine only material impact goals into `READY` status.
+2. For sensitive consumers, map the material context dimensions they assume and the identifiers, keys, fields, flags, sentinels, proofs, receipts, callbacks, or cached records that are supposed to preserve that context across the flow.
+3. Link active jobs to relevant impacts, invariants, sensitive consumers, attacker entrypoints, state roots, effect paths, assumptions, observations, hypotheses, known findings, and live evidence where useful.
+4. Refine only material impact goals into `READY` status.
 
 **Exit:** The selected job has enough evidence to hunt or a bounded repair queue.
 
@@ -59,8 +60,9 @@ For normal interactive HUNT:
 1. Run `lint`, `stale`, and bounded orphan checks for the relevant records.
 2. Confirm the `ACTIVE` job is linked to at least one concrete impact/invariant, one sensitive consumer or state root, and the relevant attacker-accessible entrypoint or explicit `UNKNOWN`.
 3. Confirm relevant calls, parameter bindings, return use, direct effects, effective paths, unresolved dispatch, and assumptions are represented.
-4. Confirm graph queries can retrieve a backward path from sensitive consumer to trusted state/source and a forward path from attacker-accessible action to relevant mutation/effect, or store the missing segment as `UNKNOWN` with the next extraction step.
-5. Let local `UNKNOWN`s block or shape the active job; do not block the whole audit unless the missing fact is globally material.
+4. Confirm the graph records material logical-context -> representation/resource -> sensitive-consumer bindings, including any shared key, optional mode, default/sentinel, proof, callback, or lifecycle identity relevant to the job.
+5. Confirm graph queries can retrieve a backward path from sensitive consumer to trusted state/source and a forward path from attacker-accessible action to relevant mutation/effect, or store the missing segment as `UNKNOWN` with the next extraction step.
+6. Let local `UNKNOWN`s block or shape the active job; do not block the whole audit unless the missing fact is globally material.
 
 For explicit full-audit mode:
 

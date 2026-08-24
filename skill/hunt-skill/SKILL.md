@@ -30,6 +30,7 @@ python3 "${SKILL_ROOT}/scripts/auditctl.py" <command> --repo <target>
 13. Do not modify production contracts during setup, reconnaissance, or indexing.
 14. In `NORMAL_HUNT`, the same research question means autonomous work; a new research direction requires explaining the recommendation and asking the user before switching. In `FULL_AUDIT`, automatically continue to the next highest-value unresolved agenda job until the stop condition in [workflows/full-audit.md](workflows/full-audit.md) is met.
 15. Treat user-provided protocol context as useful but unverified. Store it as `USER_CONTEXT`, link likely affected records, verify before relying on it, and check whether it changes active jobs, rejected hypotheses, or parked directions.
+16. Treat edge cases as reachable intersections of otherwise valid states, identities, modes, or lifecycle stages. For each active impact, compare the full logical context a sensitive consumer assumes with the context actually bound by identifiers, resource keys, proofs, callbacks, cached records, and validation. Persist a bounded lead when distinct contexts can collide or when a producer proves/returns something weaker, narrower, or different from what its consumer assumes; do not dismiss it merely because the configuration is uncommon.
 
 ## Mode Router
 
@@ -85,8 +86,9 @@ If intent is ambiguous, answer in `CHAT` or `NORMAL_HUNT` and name the next disc
 5. Store surprising-but-not-yet-buggy results as `OBSERVATION` or `STATE_PROBE`, linked to the current job.
 6. Alternate first-principles and state-consistency lenses.
 7. Inspect cross-function, cross-contract, cross-transaction, and external-protocol composition.
-8. For live-dependent claims, follow [references/live-investigation.md](references/live-investigation.md).
-9. If bounded code-led exploration produces no useful lead, run one impact-anchored historical pattern pass, convert matches into local hypotheses, and retrace them from current code.
+8. Run the context-collision and edge-case lead pass in [references/edge-case-leads.md](references/edge-case-leads.md) around the active sensitive consumer.
+9. For live-dependent claims, follow [references/live-investigation.md](references/live-investigation.md).
+10. If bounded code-led exploration produces no useful lead, run one impact-anchored historical pattern pass, convert matches into local hypotheses, and retrace them from current code.
 
 **Exit:** The idea is rejected, blocked with one missing fact, or represented as a linked hypothesis with a concrete next check.
 
@@ -129,6 +131,7 @@ If intent is ambiguous, answer in `CHAT` or `NORMAL_HUNT` and name the next disc
 - [references/graph-schema.md](references/graph-schema.md): tables, IDs, statuses, and relationship vocabulary.
 - [references/impact-catalog.md](references/impact-catalog.md): protocol-specific impact construction and vault example.
 - [references/layered-hunting.md](references/layered-hunting.md): forward/backward composition method.
+- [references/edge-case-leads.md](references/edge-case-leads.md): codebase-agnostic context-collision, ambiguous-representation, and producer/consumer lead generation.
 - [references/evidence-promotion.md](references/evidence-promotion.md): validation, rejection, automatic proof handoff, and report gates.
 - [references/historical-research.md](references/historical-research.md): Solodit, similar audits, and hack-registry routing.
 - [references/live-investigation.md](references/live-investigation.md): Tenderly-first on-chain evidence policy.
@@ -144,6 +147,7 @@ If intent is ambiguous, answer in `CHAT` or `NORMAL_HUNT` and name the next disc
 - Runtime dispatch candidates are separated from live-confirmed implementations, and supporting test code does not contaminate production paths.
 - Every important relation and claim has status, confidence, and evidence or an explicit unknown.
 - Impact goals combine a protocol invariant with a concrete protocol case.
+- Active jobs test whether identities, modes, lifecycle stages, and produced artifacts remain bound to the context assumed by sensitive consumers.
 - Retrieval remains bounded to relevant rows and source spans.
 - Rejected paths preserve kill evidence and reopen conditions.
 - Novelty is checked before reporting.

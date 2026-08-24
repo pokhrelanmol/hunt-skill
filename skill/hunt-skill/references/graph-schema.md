@@ -58,6 +58,8 @@ The graph must be query-useful, not ceremonial. Do not create a few placeholder 
 - which functions write or derive those values;
 - which external systems are trusted;
 - which path connects an attacker action to the local/external state and then to the sensitive consumer;
+- which logical identities, modes, lifecycle stages, or domains map to each representation, key, resource, proof, receipt, callback, or cached record trusted by the consumer;
+- which material context dimensions the producer binds and which dimensions the consumer independently validates;
 - which exact source/evidence anchors support or limit each edge.
 
 For every scoped function, retain compact queryable facts for:
@@ -79,6 +81,7 @@ Before HUNT or FULL_AUDIT job execution, query the graph. A useful active-job gr
 
 - `JOB` linked to the impact/invariant being tested;
 - graph nodes for relevant attacker entrypoints, sensitive consumers, state roots, roles/assets, and external dependencies;
+- nodes and edges for material logical contexts, shared resources/keys, produced artifacts, mode/default encodings, and consumer validation boundaries;
 - `CALLS`/dispatch edges for relevant local paths;
 - `READS`, `WRITES`, `DERIVES_FROM`, `TRANSFERS`, `MINTS`, `BURNS`, `DEPOSITS`, `WITHDRAWS`, `BORROWS`, `REPAYS`, `LIQUIDATES`, or namespaced effect edges as applicable;
 - evidence on verified graph edges;
@@ -150,6 +153,7 @@ TRANSFERS, MINTS, BURNS, DEPOSITS, WITHDRAWS, BORROWS, REPAYS
 LIFECYCLE_NEXT, CANCELS, SETTLES, LIQUIDATES, CLAIMS
 ENFORCES, RELIES_ON, CONFLICTS_WITH, CONSUMES, PRODUCES
 EXTERNALIZES_TO, CONFIGURED_BY, PRICES, BACKS, BREAKS
+IDENTIFIED_BY, MAPS_TO, SHARES_RESOURCE, BINDS_CONTEXT, VALIDATES_CONTEXT
 ```
 
 Every relation needs endpoints, status, confidence, and evidence or an explicit `UNKNOWN` note. Name similarity alone never proves an edge.

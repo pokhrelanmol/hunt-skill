@@ -20,6 +20,10 @@ High-value families:
 - equivalent-path comparison, such as `deposit(100)` vs `deposit(40); deposit(60)`.
 - operation reordering.
 - different actors.
+- two distinct logical instances resolving to the same key, account, resource, range, identifier, or artifact.
+- optional-mode matrices, including flag on/off crossed with empty, zero, default, stale, or non-empty values.
+- producer/consumer binding changes: vary one context field that changes what is produced or searched, then confirm whether the consumer detects the change.
+- lifecycle identity reuse: old/new, cancelled/active, pre/post-upgrade, pre/post-reset, or repeated identifiers.
 - time boundaries.
 - realistic external-state changes.
 

@@ -18,7 +18,8 @@ Before tracing, make the job precise:
 2. Forbidden state: what exact state violates it?
 3. Sensitive consumer: which decision/function/accounting operation makes it matter?
 4. Attacker objective: what must the attacker cause or exploit?
-5. Relevant dimensions: select only useful lenses, such as local state, economic/accounting, lifecycle/order, boundary/math, actors/cohorts, permissions, external integration, live state, historical primitive, cross-chain, or State Probe.
+5. Context vector: which subject, owner, asset, scope/domain, mode, lifecycle/version, time/order, authority, source/destination, amount, nonce, or external environment must remain bound for the sensitive consumer to be correct? Select only dimensions material to this job.
+6. Relevant dimensions: select only useful lenses, such as local state, economic/accounting, lifecycle/order, boundary/math, actors/cohorts, permissions, external integration, live state, historical primitive, cross-chain, or State Probe.
 
 ## Combined Impact Loop
 
@@ -32,13 +33,15 @@ Before tracing, make the job precise:
    - actor/cohort: first/last/early/late users, attacker/victim/keeper/liquidator/relayer interactions when they affect loss allocation;
    - external/live: exact external state, attacker reachability, local consumption before correction, and only necessary deployment/config facts;
    - historical: search for the primitive required by this impact, extract required conditions, then verify them locally.
-5. Read relevant existing tests/harnesses before writing or running a probe.
-6. When practical for an important job, run a focused State Probe; compare expected-equivalent before/after state.
-7. Store probe results and unexpected behavior as `STATE_PROBE` or `OBSERVATION`. An anomaly is not automatically a hypothesis.
-8. Form a hypothesis only when a concrete chain connects attacker -> reachable action -> local/external state -> bad representation -> sensitive consumer -> forbidden state -> impact.
-9. Falsify serious hypotheses across all material dimensions: reachability, permissions, ordering, sync/correction, external reachability, live config, timing, liquidity/capital, actual impact, victim requirements, intended behavior, and known/duplicate issues.
-10. Conclude the `ACTIVE` job as `DONE`, `BLOCKED`, or with a linked hypothesis.
-11. Persist the result, explain what was learned/rejected/uncertain/suspicious, recommend the next highest-value direction, and stop for human steering unless the persisted mode is `FULL_AUDIT`.
+5. Run [the edge-case lead pass](../references/edge-case-leads.md): compare the context vector with the fields actually used to identify, produce, validate, and consume the relevant representation. Search for fan-in, fan-out, sentinel/default ambiguity, partial binding, cross-instance effects, and lifecycle reuse.
+6. Read relevant existing tests/harnesses before writing or running a probe.
+7. When practical for an important job, run a focused State Probe; compare expected-equivalent before/after state and distinct-context/same-representation cases.
+8. Store probe results and unexpected behavior as `STATE_PROBE` or `OBSERVATION`. An anomaly is not automatically a hypothesis.
+9. Form a hypothesis only when a concrete chain connects attacker -> reachable action -> local/external state -> bad representation -> sensitive consumer -> forbidden state -> impact.
+10. Preserve a `LEAD` when a context collision or producer/consumer mismatch reaches a sensitive consumer but a material prerequisite or consequence remains unknown. Kill it only with concrete separation, rebinding, harmlessness, or recovery evidence.
+11. Falsify serious hypotheses across all material dimensions: reachability, permissions, ordering, sync/correction, external reachability, live config, timing, liquidity/capital, actual impact, victim requirements, intended behavior, and known/duplicate issues.
+12. Conclude the `ACTIVE` job as `DONE`, `BLOCKED`, or with a linked hypothesis.
+13. Persist the result, explain what was learned/rejected/uncertain/suspicious, recommend the next highest-value direction, and stop for human steering unless the persisted mode is `FULL_AUDIT`.
 
 ## Pattern Fallback
 

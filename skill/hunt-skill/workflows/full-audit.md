@@ -27,6 +27,7 @@ Map enough of the pinned scope to identify:
 - roles, permissions, and privileged sensitive decisions;
 - lifecycles, async steps, queues, cancellation, settlement, and finalization;
 - external integrations, live dependencies, and cross-chain state;
+- shared identifiers/resources, optional modes/defaults, produced artifacts, and lifecycle identities whose context must survive into sensitive consumers;
 - major protocol-specific invariants and forbidden states.
 
 Use [recon.md](recon.md) for deterministic mapping and repair silent coverage gaps that would prevent agenda construction.
@@ -43,6 +44,7 @@ Create concrete `JOB` rows from combinations of:
 - important coupled state;
 - external dependencies;
 - attacker-accessible surfaces.
+- context-binding boundaries where distinct instances, modes, domains, lifecycle stages, or producer requests may collapse into the same accepted representation.
 
 Each agenda job must be linked to graph records before it becomes `ACTIVE`: the impact/invariant, the sensitive consumer or state root, relevant attacker entrypoint or explicit `UNKNOWN`, and any known external dependency. A job without these links is not ready for hunting; leave it `NEXT` or `BLOCKED` with the missing graph work.
 
@@ -72,7 +74,7 @@ Use the existing `coverage` table; do not create another database.
 
 Track audit surfaces and important invariants/sensitive decisions with statuses such as `NEXT`, `ACTIVE`, `COVERED`, `BLOCKED`, and `NOT_APPLICABLE`.
 
-Coverage does not mean "source was read". A surface is `COVERED` only when meaningful protocol-specific invariants or forbidden states were investigated through the relevant dimensions. For example, liquidation coverage should include debt reduction, collateral seizure, partial liquidation, accounting synchronization, post-liquidation borrow/withdraw effects, rounding/boundaries where relevant, and external price interaction where relevant.
+Coverage does not mean "source was read". A surface is `COVERED` only when meaningful protocol-specific invariants or forbidden states were investigated through the relevant dimensions, including material context-binding boundaries. For example, liquidation coverage should include debt reduction, collateral seizure, partial liquidation, accounting synchronization, post-liquidation borrow/withdraw effects, rounding/boundaries where relevant, and external price interaction where relevant.
 
 ## Process One ACTIVE Job At A Time
 
