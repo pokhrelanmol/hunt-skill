@@ -114,7 +114,14 @@ NEXT -> ACTIVE -> DONE
         |        |
         +-> PARKED
         +-> BLOCKED
+
+parent Job <- VARIANT_OF <- variant Job
+OPEN family -> SATURATED family -> OPEN only with new evidence
 ```
+
+Before activating a Job, compare it with bounded current and prior Job history. Equivalent impact + consumer + primitive/mechanism + lifecycle context continues or reopens the existing Job. A completed Job result records its coverage boundary, disposition, unresolved segments, and reopen condition so later ideation can distinguish genuinely new coverage from cosmetic variants.
+
+A variant uses `VARIANT_OF` to point to its immediate parent. `JOB_INHERITED_COVERAGE` records what is reused; `JOB_VARIANT_DELTA` records the materially new causal edge; `JOB_VARIANT_DISTINCTNESS` explains why it can produce a result the parent could not; and `JOB_NEXT_CHECK` stores its cheapest falsification check. The family root carries `JOB_FAMILY_STATUS`. `research-packet` retrieves bounded non-variant relations from the parent lineage, while the variant adds graph records for its delta. Saturation means the currently supported graph frontiers are covered, not that the impact is impossible forever.
 
 User context lifecycle:
 
@@ -132,7 +139,7 @@ Unexpected probe output becomes OBSERVATION first, not an automatic hypothesis.
 
 Impact lifecycle:
 
-- `DRAFT`: generic seed or missing protocol fields; never use as a complete hunt target.
+- `DRAFT`: agent-created proposal with missing protocol fields; never use as a complete hunt target.
 - `READY`: invariant, protocol case, decision point, bad state, attacker goal, and candidate primitives are concrete.
 - `COVERED`: all promising flows were investigated or explicitly rejected.
 
@@ -151,6 +158,7 @@ LIFECYCLE_NEXT, CANCELS, SETTLES, LIQUIDATES, CLAIMS
 ENFORCES, RELIES_ON, CONFLICTS_WITH, CONSUMES, PRODUCES
 EXTERNALIZES_TO, CONFIGURED_BY, PRICES, BACKS, BREAKS
 IDENTIFIED_BY, MAPS_TO, SHARES_RESOURCE, BINDS_CONTEXT, VALIDATES_CONTEXT
+FOCUSES_ON, INVESTIGATES, OBSERVED_IN, ASSUMES, REVIVES, VARIANT_OF
 ```
 
 Every relation needs endpoints, status, confidence, and evidence or an explicit `UNKNOWN` note. Name similarity alone never proves an edge.

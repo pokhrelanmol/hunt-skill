@@ -6,7 +6,7 @@ HUNT is one meaningful `ACTIVE` job attacking one protocol-specific impact, not 
 
 Require broad protocol context from RECON: scope, architecture, actors, assets, value flow, integrations, lifecycles, and important invariants. Do not require perfect deterministic coverage for every state-changing entrypoint before the first hunt.
 
-For the `ACTIVE` job, require deep local graph/context coverage for the relevant subsystem, function, state, integration, or impact. If local call/effect/argument coverage is stale or missing, deepen RECON only for that surface.
+For the `ACTIVE` Job, require deep graph/context coverage for its causal surface, not only the focal function. A variant may inherit still-valid parent coverage, but its stated delta and the edges connecting it to the inherited path must be detailed. If producer, consumer, lifecycle, call/effect, or argument coverage is stale or missing, deepen RECON for the missing surface.
 
 Do not start from memory of source files alone. Before the Combined Impact Loop, the agent must create and query a useful graph packet for the `ACTIVE` job. The packet should include relevant impact/invariant links, attacker entrypoints or explicit `UNKNOWN`, sensitive consumers, state roots, call edges, read/write/effect edges, external integrations, and source/evidence anchors. If `research-packet`, `neighbors`, or `path` cannot retrieve these relationships, return to RECON and build the missing graph records.
 
@@ -41,8 +41,9 @@ Before tracing, make the job precise:
 10. Preserve a `LEAD` when a context collision or producer/consumer mismatch reaches a sensitive consumer but a material prerequisite or consequence remains unknown. Kill it only with concrete separation, rebinding, harmlessness, or recovery evidence.
 11. Falsify serious hypotheses across all material dimensions: reachability, permissions, ordering, sync/correction, external reachability, live config, timing, liquidity/capital, actual impact, victim requirements, intended behavior, and known/duplicate issues.
 12. Conclude the `ACTIVE` job as `DONE`, `BLOCKED`, or with a linked hypothesis.
-13. Persist the result, explain what was learned/rejected/uncertain/suspicious, recommend the next highest-value direction, and stop for human steering.
+13. Persist the result, coverage boundary, kill evidence or surviving lead, unresolved segments, and reopen condition. Compare bounded Job-family history before recommending a continuation, evidence-based reopen, graph-frontier variant, or genuinely new family.
+14. If all locally promising family frontiers are covered or explicitly killed, mark the family saturated. Do not create a cosmetic variant; rotate unless new evidence supplies an explicit reopen reason. Then stop for human steering.
 
-## Pattern Fallback
+## Additional Pattern Search
 
-If the active code-led job stalls, run one focused historical search anchored to the same forbidden state, sensitive consumer, integration, or attacker primitive. Convert any match into required conditions and retrace current code. Historical similarity never changes status by itself.
+The initial job-idea pass may already have used one real finding to extract an edge case or composition. If the active code-led job still stalls, run at most one additional focused historical search anchored to the same forbidden state, sensitive consumer, integration, or attacker primitive. Convert any match into required conditions and retrace current code. Historical similarity never changes status by itself.

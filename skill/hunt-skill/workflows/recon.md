@@ -13,7 +13,7 @@ RECON has two depths: basic global context for interactive hunting, and deep det
 
 1. Understand architecture, actors, assets, money/value flow, integrations, major lifecycles, documented behavior, and important invariants.
 2. Enumerate the most important permissionless/state-changing surfaces enough to propose meaningful research.
-3. Create or refine the protocol profile and relevant impact goals.
+3. Use [agent-driven job ideation](../references/job-ideation.md) to compare prior coverage and derive lightweight candidate questions from the observed architecture, state, value flow, and sensitive consumers. Apply triggered checklist questions and real edge cases only as lenses that challenge or expand those local candidates.
 4. Store material unknowns as `UNKNOWN`; ask the user only when intended behavior matters and cannot be established from code/docs.
 
 **Exit:** Hunt can propose one niche invariant or `ACTIVE` job without claiming the whole repository graph is complete.
@@ -22,7 +22,7 @@ RECON has two depths: basic global context for interactive hunting, and deep det
 
 **Entry:** An `ACTIVE` job, subsystem, function, state variable, integration, invariant, or impact is selected.
 
-1. Build the graph to be useful for the selected impact/job, not merely present. The graph must support real queries such as "which attacker entrypoints can reach this sensitive consumer?", "which state does this decision trust?", "who writes that state?", and "which later operation consumes the changed representation?"
+1. Build the graph for the selected Job's causal surface, not merely its focal function. Close over the sensitive consumer's trusted inputs, every material local/external producer of those inputs, attacker paths to the producers, later consumers of attacker-influenced outputs, and relevant sibling/inverse lifecycle paths.
 2. Compile the pinned baseline when feasible and use compiler AST/build artifacts for declarations, overloads, modifiers, source spans, and resolvable calls.
 3. Create nodes for relevant contracts, external/public functions, internal functions, modifiers, storage/state roots, roles, assets, lifecycle states, external systems, logical identities/instances, shared resource keys, produced artifacts when material, tests/harness anchors, invariants, impacts, and the `ACTIVE` job.
 4. Give every invocation its own call-site identity, including repeated and nested calls on the same line.
@@ -56,11 +56,12 @@ The graph gate is a hard blocker. Do not advance into HUNT job execution with pl
 
 For HUNT:
 
-1. Run `lint`, `stale`, and bounded orphan checks for the relevant records.
+1. Run `lint` and bounded orphan checks for the relevant records. Confirm the source snapshot was freshness-checked during boot; do not repeat `stale` during the same unchanged task.
 2. Confirm the `ACTIVE` job is linked to at least one concrete impact/invariant, one sensitive consumer or state root, and the relevant attacker-accessible entrypoint or explicit `UNKNOWN`.
 3. Confirm relevant calls, parameter bindings, return use, direct effects, effective paths, unresolved dispatch, and assumptions are represented.
 4. Confirm the graph records material logical-context -> representation/resource -> sensitive-consumer bindings, including any shared key, optional mode, default/sentinel, proof, callback, or lifecycle identity relevant to the job.
 5. Confirm graph queries can retrieve a backward path from sensitive consumer to trusted state/source and a forward path from attacker-accessible action to relevant mutation/effect, or store the missing segment as `UNKNOWN` with the next extraction step.
 6. Let local `UNKNOWN`s block or shape the active job; do not block the whole audit unless the missing fact is globally material.
+7. Confirm that operations were excluded only with a concrete no-path or no-effect reason; "not the focal function" is not an exclusion reason.
 
 **Exit:** HUNT starts after sufficient broad context and deep local coverage for the active job.

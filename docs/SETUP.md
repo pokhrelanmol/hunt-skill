@@ -1,6 +1,6 @@
 # Project Setup Guide
 
-This guide installs Hunt Skill into one audit project and initializes its project-local SQLite workflow.
+This is the canonical installation, update, scope, and troubleshooting guide for Hunt Skill.
 
 ## 1. Clone Or Update The Skill Repository
 
@@ -51,35 +51,7 @@ Open a new Codex task from the audit project after installation. The skill shoul
 
 The repository intentionally does not install a global symlink. Each project controls its own skill version.
 
-## 4. Verify SQLite
-
-```bash
-PROJECT=/absolute/path/to/audit-project
-AUDITCTL="$PROJECT/.agents/skills/hunt-skill/scripts/auditctl.py"
-
-python3 "$AUDITCTL" doctor --repo "$PROJECT"
-python3 "$AUDITCTL" db-info --repo "$PROJECT"
-```
-
-Expected requirements:
-
-- Python `>=3.11`
-- SQLite JSON1: `true`
-- SQLite FTS5: `true`
-- Runtime dependencies: empty
-
-Tenderly is optional for local code analysis. When live state matters, Hunt prefers Tenderly for simulations/traces/forks and falls back to `cast` plus Alchemy/public RPC for narrow reads.
-
-Optional shell keys:
-
-```bash
-export SOLODIT_API_KEY="..."
-export ALCHEMY_API_KEY="..."
-```
-
-`SOLODIT_API_KEY` enables Solodit-backed historical research. `ALCHEMY_API_KEY` is optional for preferred authenticated RPC; supported chains can fall back to public RPC.
-
-## 5. Lock The Audit Scope
+## 4. Lock The Audit Scope
 
 Edit:
 
@@ -98,55 +70,29 @@ src/libraries/Accounting.sol
 Capture the snapshot:
 
 ```bash
+PROJECT=/absolute/path/to/audit-project
+AUDITCTL="$PROJECT/.agents/skills/hunt-skill/scripts/auditctl.py"
+
 python3 "$AUDITCTL" snapshot --repo "$PROJECT" \
   --scope-file .audit/SCOPE_FILES.txt
 ```
 
 The snapshot stores exact paths and SHA-256 hashes. Graph evidence and PoC handoff readiness become stale when scoped source changes.
 
-## 6. Create The Protocol Profile
+Protocol family selection and impact seeding are not setup steps. After code-led RECON, the agent derives protocol-specific invariants and candidate Jobs from current code and uses checklist questions or real edge cases only as bounded reasoning lenses.
 
-Choose every applicable archetype. Hybrid protocols may use several:
+## 5. Optional Integrations
 
-Available seed archetypes are `generic`, `vault`, `lending`, `bridge`, `dex`, `stablecoin`, `perps`, `liquid-staking`, and `governance`.
+Tenderly, Solodit, Alchemy, and a dedicated PoC skill are optional during installation. Configure them only when the active investigation needs them.
 
-```bash
-python3 "$AUDITCTL" profile-set --repo "$PROJECT" \
-  --name "Protocol Name" \
-  --archetype vault \
-  --archetype lending \
-  --asset USDC \
-  --integration "External ERC4626 collateral" \
-  --case "Describe how shares, collateral, debt, liquidation, settlement, and external state interact."
-
-python3 "$AUDITCTL" impact-seed --repo "$PROJECT"
-python3 "$AUDITCTL" impact-list --repo "$PROJECT" --status DRAFT
-```
-
-Do not hunt directly from generic templates. Refine the relevant impacts until they are protocol-specific and `READY`.
-
-## 7. Use Bounded Retrieval
+Optional shell keys:
 
 ```bash
-python3 "$AUDITCTL" search --repo "$PROJECT" "cancel debt"
-python3 "$AUDITCTL" neighbors --repo "$PROJECT" function:... \
-  --types CALLS,READS,WRITES --depth 1 --limit 30
-python3 "$AUDITCTL" context --repo "$PROJECT" \
-  --goal "Can cancellation desynchronize facility debt?" --limit 20
+export SOLODIT_API_KEY="..."
+export ALCHEMY_API_KEY="..."
 ```
 
-Do not open the SQLite file as text or dump the entire graph into model context.
-
-## 8. Pattern Research Order
-
-1. Hunt from current code, protocol invariants, and state relationships.
-2. When a bounded local pass produces no useful lead, run one focused historical search for inspiration.
-3. Convert a matched pattern into a current-protocol question and trace it independently.
-4. After a hypothesis survives validation, search historical sources again for duplicates and novelty.
-
-Similarity never proves vulnerability.
-
-## 9. Automatic PoC Handoff
+`SOLODIT_API_KEY` enables Solodit-backed historical research. `ALCHEMY_API_KEY` selects authenticated RPC where supported; otherwise Hunt may use a public RPC for narrow reads.
 
 Configure the dedicated proof skill once:
 
@@ -155,15 +101,9 @@ python3 "$AUDITCTL" poc-config --repo "$PROJECT" \
   --path /absolute/path/to/poc-skill
 ```
 
-When a hypothesis reaches `CODE_VALIDATED`, Codex runs:
+At `CODE_VALIDATED`, Hunt runs `poc-handoff`. It checks source freshness and the configured skill before returning the proof packet.
 
-```bash
-python3 "$AUDITCTL" poc-handoff --repo "$PROJECT" HYP-001
-```
-
-The handoff checks that the scope is fresh and the configured PoC skill contains `SKILL.md`. Hunt resolves normal supported RPCs automatically; Codex asks only for genuinely missing proof inputs such as deployed addresses, historical blocks, archive-only capability, or unavailable fixtures.
-
-## 10. Update Or Remove
+## 6. Update Or Remove
 
 Update:
 
@@ -180,6 +120,16 @@ rm -rf /absolute/path/to/audit-project/.agents/skills/hunt-skill
 The project's `.audit/` database and notebooks remain intact unless removed separately.
 
 ## Troubleshooting
+
+Do not run diagnostics at every task start. The installer already checks Python and SQLite. Use the following commands only when installation, database access, search, or optional tooling fails:
+
+```bash
+PROJECT=/absolute/path/to/audit-project
+AUDITCTL="$PROJECT/.agents/skills/hunt-skill/scripts/auditctl.py"
+
+python3 "$AUDITCTL" doctor --repo "$PROJECT"
+python3 "$AUDITCTL" db-info --repo "$PROJECT"
+```
 
 ### Skill is not listed
 

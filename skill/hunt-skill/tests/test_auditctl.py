@@ -88,21 +88,55 @@ class AuditCtlTests(unittest.TestCase):
     def setup_store(self) -> None:
         self.run_cli("init")
         self.run_cli("snapshot", "--scope", "src")
-        self.run_cli(
-            "profile-set",
-            "--name",
-            "Fixture Vault",
-            "--archetype",
-            "vault",
-            "--case",
-            "Vault shares and totalAssets control deposit and redemption value.",
-        )
-        self.run_cli("impact-seed")
 
-    def test_setup_seed_and_bounded_search(self) -> None:
+    def test_impact_creation_is_agent_driven_and_protocol_specific(self) -> None:
+        self.run_cli("init")
+        self.run_cli("snapshot", "--scope", "src")
+        impacts = self.run_cli("impact-list", "--status", "DRAFT")
+        self.assertEqual(impacts["count"], 0)
+
+        invariant_id = "invariant:vault-deposit-accounting"
+        impact_id = "impact:vault-deposit-dilution"
+        self.run_cli(
+            "invariant-upsert",
+            "--id",
+            invariant_id,
+            "--title",
+            "Deposits preserve ownership",
+            "--statement",
+            "Deposit share issuance preserves proportional ownership of economically owned assets.",
+            "--protocol-case",
+            "Vault.deposit consumes totalAssets to issue shares.",
+        )
+        created = self.run_cli(
+            "impact-upsert",
+            "--id",
+            impact_id,
+            "--title",
+            "Deposit dilution",
+            "--invariant-id",
+            invariant_id,
+            "--protocol-case",
+            "Vault.deposit converts assets using totalAssets.",
+            "--decision-point",
+            "deposit share conversion",
+            "--bad-state",
+            "issued shares exceed the depositor's economic contribution",
+            "--attacker-goal",
+            "obtain excess ownership",
+            "--candidate-primitive",
+            "function:src/Vault.sol:Vault.deposit()",
+            "--status",
+            "READY",
+        )
+        self.assertEqual(created["status"], "READY")
+        impacts = self.run_cli("impact-list", "--status", "READY")
+        self.assertEqual([row["id"] for row in impacts["rows"]], [impact_id])
+
+    def test_setup_and_bounded_search(self) -> None:
         self.setup_store()
         impacts = self.run_cli("impact-list", "--status", "DRAFT")
-        self.assertGreaterEqual(impacts["count"], 1)
+        self.assertEqual(impacts["count"], 0)
         failed = self.run_cli(
             "impact-upsert",
             "--id",
@@ -252,6 +286,38 @@ class AuditCtlTests(unittest.TestCase):
         )
         packet = self.run_cli("research-packet", "JOB-001")
         self.assertEqual(packet["job"]["status"], "NEXT")
+        jobs = self.run_cli("job-list", "--limit", "10")
+        self.assertEqual([row["id"] for row in jobs["rows"]], ["JOB-002", "JOB-001"])
+        search = self.run_cli("search", "FalconX NAV lag")
+        self.assertTrue(
+            any(
+                row["record_type"] == "investigations" and row["record_id"] == "JOB-002"
+                for row in search["rows"]
+            )
+        )
+        failed = self.run_cli(
+            "job-upsert",
+            "--id",
+            "JOB-001",
+            "--goal",
+            "Can partial settlement make cancellation restore too much collateral?",
+            "--status",
+            "DONE",
+            expected=2,
+        )
+        self.assertIn("DONE job requires --result", failed["error"])
+        self.run_cli(
+            "job-upsert",
+            "--id",
+            "JOB-001",
+            "--goal",
+            "Can partial settlement make cancellation restore too much collateral?",
+            "--status",
+            "DONE",
+            "--result",
+            "Coverage: partial settlement and cancellation; disposition: rejected; "
+            "unresolved: none; reopen when: settlement accounting changes.",
+        )
 
         self.run_cli(
             "observation-add",
@@ -306,6 +372,132 @@ class AuditCtlTests(unittest.TestCase):
         self.assertTrue(
             any(candidate["record_id"] == "HYP-REVIVE" for candidate in context["affected_candidates"])
         )
+
+    def test_job_variants_inherit_graph_and_enforce_family_saturation(self) -> None:
+        self.setup_store()
+        self.run_cli(
+            "job-upsert",
+            "--id",
+            "JOB-BASE",
+            "--goal",
+            "Can donation-inflated share value corrupt withdrawal accounting?",
+            "--status",
+            "DONE",
+            "--result",
+            "Coverage: donation producer and withdrawal consumer; disposition: rejected; "
+            "unresolved: other consumers; reopen when: a new consumer or integration is found.",
+        )
+        self.run_cli(
+            "node-upsert",
+            "--id",
+            "function:Vault.withdraw",
+            "--kind",
+            "function",
+            "--name",
+            "withdraw",
+        )
+        self.run_cli(
+            "relation-upsert",
+            "--src",
+            "JOB-BASE",
+            "--type",
+            "FOCUSES_ON",
+            "--dst",
+            "function:Vault.withdraw",
+            "--status",
+            "INFERRED",
+        )
+        variant = self.run_cli(
+            "job-upsert",
+            "--id",
+            "JOB-VARIANT-1",
+            "--goal",
+            "Can the same inflated share value be consumed by collateral valuation?",
+            "--status",
+            "NEXT",
+            "--variant-of",
+            "JOB-BASE",
+            "--variant-delta",
+            "New consumer: collateral valuation rather than withdrawal accounting.",
+            "--inherits",
+            "Donation reachability, share-value producer graph, and withdrawal rejection.",
+            "--distinctness",
+            "Collateral valuation may trust the inflated representation without withdrawal's guard.",
+            "--next-check",
+            "Trace every collateral-value consumer of the share token.",
+        )
+        self.assertEqual(variant["variant_of"], "JOB-BASE")
+        self.assertEqual(variant["family_root"], "JOB-BASE")
+        self.assertEqual(variant["family_status"], "OPEN")
+        self.assertIn("Collateral valuation", variant["variant_distinctness"])
+        self.assertIn("collateral-value consumer", variant["next_check"])
+
+        packet = self.run_cli("research-packet", "JOB-VARIANT-1")
+        self.assertEqual(packet["linked"]["jobs"][0]["id"], "JOB-BASE")
+        self.assertTrue(
+            any(
+                edge["dst_id"] == "function:Vault.withdraw"
+                and edge["inherited_from_job"] == "JOB-BASE"
+                for edge in packet["inherited_relations"]
+            )
+        )
+        self.assertEqual(packet["linked"]["nodes"][0]["id"], "function:Vault.withdraw")
+
+        family = self.run_cli("job-list", "--family", "JOB-VARIANT-1", "--limit", "10")
+        self.assertEqual({row["id"] for row in family["rows"]}, {"JOB-BASE", "JOB-VARIANT-1"})
+        self.run_cli(
+            "job-upsert",
+            "--id",
+            "JOB-VARIANT-1",
+            "--goal",
+            "Can the same inflated share value be consumed by collateral valuation?",
+            "--status",
+            "DONE",
+            "--result",
+            "Coverage: withdrawal and collateral consumers; disposition: rejected; "
+            "unresolved: none found; reopen when: new code or integration consumes share value.",
+            "--saturate-family",
+        )
+        blocked = self.run_cli(
+            "job-upsert",
+            "--id",
+            "JOB-VARIANT-2",
+            "--goal",
+            "Can an external integration consume inflated share value?",
+            "--variant-of",
+            "JOB-VARIANT-1",
+            "--variant-delta",
+            "New integration consumer.",
+            "--inherits",
+            "Donation and share-value producer coverage.",
+            "--distinctness",
+            "An external consumer may omit the local withdrawal guard.",
+            "--next-check",
+            "Resolve deployed consumers of the share token.",
+            expected=2,
+        )
+        self.assertIn("is SATURATED", blocked["error"])
+        reopened = self.run_cli(
+            "job-upsert",
+            "--id",
+            "JOB-VARIANT-2",
+            "--goal",
+            "Can an external integration consume inflated share value?",
+            "--variant-of",
+            "JOB-VARIANT-1",
+            "--variant-delta",
+            "New integration consumer discovered in deployment configuration.",
+            "--inherits",
+            "Donation and share-value producer coverage.",
+            "--distinctness",
+            "The deployed integration consumes the representation under different validation.",
+            "--next-check",
+            "Trace the integration's collateral valuation and liquidation paths.",
+            "--reopen-family-reason",
+            "New deployed integration accepts the share token as collateral.",
+        )
+        self.assertEqual(reopened["family_root"], "JOB-BASE")
+        self.assertEqual(reopened["family_status"], "OPEN")
 
     def test_research_packet_prefers_explicit_links_and_excludes_unrelated_context(self) -> None:
         self.setup_store()
@@ -390,6 +582,9 @@ class AuditCtlTests(unittest.TestCase):
                 "--status",
                 "INFERRED",
             )
+        jobs = self.run_cli("job-list", "--linked-record", impact_id)
+        self.assertEqual([row["id"] for row in jobs["rows"]], ["JOB-LINKED"])
+        self.assertIn(impact_id, jobs["rows"][0]["linked_records"])
         packet = self.run_cli("research-packet", "JOB-LINKED")
         self.assertFalse(packet["bounds"]["fts_fallback_used"])
         self.assertEqual(packet["linked"]["impact_goals"][0]["id"], impact_id)
@@ -533,8 +728,6 @@ class AuditCtlTests(unittest.TestCase):
             "impact-upsert",
             "--id",
             impact_id,
-            "--archetype",
-            "vault",
             "--title",
             "Fixture impact",
             "--invariant-id",

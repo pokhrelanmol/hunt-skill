@@ -13,10 +13,10 @@ For installation, upgrades, scope setup, and troubleshooting, use [docs/SETUP.md
 ## What It Enforces
 
 - Code and pinned configuration remain the primary evidence.
-- Impact catalogs combine protocol archetypes with concrete protocol-specific invariants and bad states.
+- After basic code-led RECON, the agent derives protocol-specific invariants and candidate impacts from current code, then uses applicable checklist questions and real edge cases only to challenge or expand those ideas before selecting one graph-anchored job.
 - Cross-function, cross-contract, cross-transaction, and external-protocol relationships are queryable without loading a large Markdown notebook.
 - Edge-case leads come from reachable intersections: Hunt checks whether distinct identities, modes, lifecycle stages, or domains collapse into the same key, resource, proof, callback, cache, or accepted condition before a sensitive consumer acts.
-- Pattern matching is used as bounded fallback inspiration when code-led hunting stalls, then again to validate novelty and known-issue status.
+- Checklist and historical patterns are used in a bounded post-RECON idea pass, then again to validate novelty and known-issue status.
 - Repository audits, similar audits, Solodit, and the EVM Hack Registry must be checked before reporting.
 - Tenderly is preferred for simulations, traces, forks, and state overrides when its skill is available.
 - A code-validated hypothesis automatically hands off to a configured dedicated PoC skill; proof still checks current scope and asks the user only when required environment/context is missing.
@@ -35,42 +35,18 @@ For exact install commands, optional environment variables, updates, and trouble
 
 ## Quick Start
 
-Clone this repository once:
-
-```bash
-git clone git@github.com:pokhrelanmol/hunt-skill.git
-cd hunt-skill
-```
-
-Install into an audit project:
-
-```bash
-./scripts/install.sh /absolute/path/to/audit-project
-```
-
-This copies the skill to the audit project:
-
-```text
-<audit-project>/.agents/skills/hunt-skill/
-```
-
-Restart or open a new Codex task in the project after installation so project skill discovery refreshes.
-
-Then open Codex inside the target protocol repository and say:
+Follow [docs/SETUP.md](docs/SETUP.md) once, open Codex in the target protocol repository, and say:
 
 ```text
 Use Hunt Skill on this repo.
 ```
 
-If you need optional Solodit, Alchemy, update, or scope commands, go to [docs/SETUP.md](docs/SETUP.md).
-
 ## Primary Workflow
 
-1. Install Hunt Skill into the protocol repository.
-2. Optionally configure Solodit or Alchemy using [docs/SETUP.md](docs/SETUP.md).
-3. Open Codex inside the target protocol repository.
-4. Say: `Use Hunt Skill on this repo.`
-5. Provide scope, docs, deployment context, or protocol explanations only when asked.
+1. Complete installation and scope setup using [docs/SETUP.md](docs/SETUP.md).
+2. Open Codex inside the target protocol repository.
+3. Say: `Use Hunt Skill on this repo.`
+4. Provide scope, docs, deployment context, or protocol explanations only when asked.
 
 Hunt handles `auditctl`, SQLite, graph retrieval, State Probes, Solodit research, chain detection, Tenderly, `cast`, RPC selection, and PoC handoff internally.
 
@@ -85,6 +61,10 @@ one ACTIVE job
 -> recommend next direction
 -> stop for human steering
 ```
+
+Before selecting that Job, Hunt reviews prior Job and impact coverage, derives lightweight candidates from current code, and chooses the direction with the strongest combination of plausible impact, reachability, local signal, composition potential, and a cheap discriminating check. The Job narrows the security question, not the causal surface: any function or integration that produces a trusted input or consumes an attacker-influenced output remains in scope for its graph.
+
+When the surface-level Jobs are already hunted, Hunt expands the coverage frontier. It may continue an unresolved Job, reopen one because new evidence changed an assumption, create a `VARIANT_OF` Job for a materially different producer/consumer/lifecycle/prerequisite/integration path, or rotate to a new family. Variants inherit the parent graph and killed paths, then map only the new delta. Once the supported frontiers are exhausted, the family is marked saturated and cannot receive another cosmetic variant without an explicit new-evidence reason.
 
 Requests like `hunt`, `look for bugs`, `check this flow`, `investigate this`, or `go deeper` use this workflow. Hunt works autonomously inside the current research question, then recommends the next direction and waits for human steering before changing research direction.
 
@@ -121,7 +101,7 @@ Use $hunt-skill to investigate whether cancellation can desynchronize debt.
 Use $hunt-skill to continue HYP-003 and try to falsify it.
 ```
 
-The default mode is collaborative `CHAT`; concrete research proceeds as one bounded `ACTIVE` job at a time.
+The default interaction is collaborative `CHAT`; concrete research proceeds as one bounded `ACTIVE` job at a time.
 
 ## How The Graph-Based Hunt Works
 
@@ -273,29 +253,11 @@ When live state matters, Hunt uses this hierarchy:
 
 For `cast`, Hunt resolves the chain automatically from audit context or the active job. If `ALCHEMY_API_KEY` is configured and Alchemy supports the chain, it uses the correct Alchemy endpoint. Otherwise it falls back to a public RPC for supported chains. The normal user should not configure RPC URL templates.
 
-Advanced live debugging:
-
-```bash
-PROJECT=/absolute/path/to/audit-project
-AUDITCTL="$PROJECT/.agents/skills/hunt-skill/scripts/auditctl.py"
-
-python3 "$AUDITCTL" rpc-resolve --repo "$PROJECT" --chain base
-python3 "$AUDITCTL" cast-read --repo "$PROJECT" --chain base \
-  --operation call --address 0x... --signature "totalAssets()(uint256)"
-```
-
-For live-state setup details, read [docs/SETUP.md](docs/SETUP.md).
+For optional keys and live-state setup details, read [docs/SETUP.md](docs/SETUP.md). The installed skill's [CLI reference](skill/hunt-skill/references/cli.md) contains operational command examples.
 
 ## Update An Installed Project
 
-Pull this repository, then reinstall explicitly:
-
-```bash
-git pull --ff-only
-./scripts/install.sh --update /absolute/path/to/audit-project
-```
-
-The installer backs up the previous skill directory before replacing it. Project audit state remains in `.audit/` and is not replaced.
+Use the update procedure in [docs/SETUP.md](docs/SETUP.md). Project audit state remains in `.audit/` and is not replaced.
 
 ## Repository Layout
 
@@ -308,7 +270,6 @@ hunt-skill/
   skill/hunt-skill/
     SKILL.md
     agents/openai.yaml
-    assets/impact-catalogs.json
     references/
     workflows/
     scripts/auditctl.py

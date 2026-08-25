@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Any
 
 from . import SCHEMA_VERSION
-from .catalog import load_catalog, seed_impacts, set_profile
 from .db import (
     SEARCHABLE_TABLES,
     as_dicts,
@@ -94,6 +93,7 @@ RELATION_TYPES = {
     "OBSERVED_IN",
     "ASSUMES",
     "REVIVES",
+    "VARIANT_OF",
 }
 
 
@@ -313,7 +313,7 @@ def cmd_doctor(args) -> None:
         "tenderly": detect_tenderly(),
         "live_state": rpc_status,
         "runtime_dependencies": [],
-        "next": "run init --repo <repo>" if python_ok and all(capabilities.values()) else "fix failed requirements",
+        "next": "run init only if .audit/graph/audit.db is absent" if python_ok and all(capabilities.values()) else "fix failed requirements",
     }
     emit(result)
     if not result["ok"]:
@@ -325,9 +325,8 @@ CONTROL_FILES = {
 
 Protocol: TODO
 Scope snapshot: not captured
-Active mode: NORMAL_HUNT
-Active leads: none
-Current focus: initialize protocol profile and exact scope
+Active job: none
+Current focus: capture exact scope and map the protocol
 """,
     "PROJECT.md": """# Protocol Model
 
@@ -335,9 +334,8 @@ Keep only stable, verified architecture, roles, assets, accounting, invariants, 
 """,
     "CURRENT.md": """# Current Audit State
 
-Mode: NORMAL_HUNT
-Focus: setup
-Next discriminating check: capture exact scope and create protocol profile
+Focus: scope and reconnaissance
+Next discriminating check: capture exact scope, then map one protocol-specific impact
 """,
     "LEADS.md": """# Active Leads
 
@@ -400,42 +398,6 @@ def cmd_snapshot(args) -> None:
     emit(result)
 
 
-def cmd_profile_set(args) -> None:
-    repo = repo_path(args)
-    conn = connect(repo)
-    set_profile(
-        conn,
-        name=args.name,
-        archetypes=args.archetype,
-        protocol_case=args.case,
-        assets=args.asset or [],
-        roles=args.role or [],
-        integrations=args.integration or [],
-    )
-    emit({"ok": True, "name": args.name, "archetypes": sorted(set(args.archetype))})
-    conn.close()
-
-
-def cmd_impact_seed(args) -> None:
-    conn = connect(repo_path(args))
-    seeded = seed_impacts(conn)
-    emit({"ok": True, "seeded_or_present": seeded, "status": "DRAFT", "count": len(seeded)})
-    conn.close()
-
-
-def cmd_catalog_list(args) -> None:
-    catalog = load_catalog()
-    emit(
-        {
-            "version": catalog["version"],
-            "archetypes": {
-                key: [{"key": item["key"], "title": item["title"]} for item in value]
-                for key, value in catalog["archetypes"].items()
-            },
-        }
-    )
-
-
 def cmd_invariant_upsert(args) -> None:
     repo = repo_path(args)
     conn = connect(repo)
@@ -468,7 +430,7 @@ def cmd_impact_upsert(args) -> None:
         return existing[name] if existing is not None else default
 
     values = {
-        "archetype": choose("archetype"),
+        "archetype": choose("archetype", "protocol"),
         "title": choose("title"),
         "invariant_id": choose("invariant_id", None),
         "protocol_case": choose("protocol_case"),
@@ -483,7 +445,7 @@ def cmd_impact_upsert(args) -> None:
     else:
         primitives = []
     if status == "READY":
-        required = ("archetype", "title", "invariant_id", "protocol_case", "decision_point", "bad_state", "attacker_goal")
+        required = ("title", "invariant_id", "protocol_case", "decision_point", "bad_state", "attacker_goal")
         missing = [name for name in required if not values[name]]
         if not primitives:
             missing.append("candidate_primitives")
@@ -1093,6 +1055,94 @@ def stable_id(prefix: str, text: str) -> str:
     return f"{prefix}:{digest}"
 
 
+def job_parent(conn, job_id: str) -> str | None:
+    rows = conn.execute(
+        "SELECT dst_id FROM relations WHERE src_id=? AND type='VARIANT_OF' ORDER BY id LIMIT 2",
+        (job_id,),
+    ).fetchall()
+    if len(rows) > 1:
+        raise ValueError(f"job has multiple VARIANT_OF parents: {job_id}")
+    return rows[0]["dst_id"] if rows else None
+
+
+def job_lineage(conn, job_id: str) -> list[str]:
+    lineage: list[str] = []
+    seen = {job_id}
+    current = job_id
+    for _ in range(100):
+        parent = job_parent(conn, current)
+        if parent is None:
+            return lineage
+        if parent in seen:
+            raise ValueError(f"cycle in Job variant family at {parent}")
+        if conn.execute(
+            "SELECT 1 FROM investigations WHERE id=? AND mode='JOB'", (parent,)
+        ).fetchone() is None:
+            raise ValueError(f"variant parent job not found: {parent}")
+        lineage.append(parent)
+        seen.add(parent)
+        current = parent
+    raise ValueError(f"Job variant family exceeds maximum depth: {job_id}")
+
+
+def job_family_root(conn, job_id: str) -> str:
+    lineage = job_lineage(conn, job_id)
+    return lineage[-1] if lineage else job_id
+
+
+def job_fact(conn, job_id: str, kind: str) -> str:
+    row = conn.execute(
+        "SELECT statement FROM facts WHERE subject_id=? AND kind=? "
+        "ORDER BY updated_at DESC, id DESC LIMIT 1",
+        (job_id, kind),
+    ).fetchone()
+    return row["statement"] if row else ""
+
+
+def upsert_job_fact(conn, job_id: str, kind: str, statement: str, now: str) -> str:
+    fact_id = stable_id(f"fact:{kind.lower()}", job_id)
+    conn.execute(
+        "INSERT INTO facts(id, subject_id, kind, statement, status, confidence, created_at, updated_at) "
+        "VALUES(?, ?, ?, ?, 'INFERRED', 0.5, ?, ?) ON CONFLICT(id) DO UPDATE SET "
+        "subject_id=excluded.subject_id, kind=excluded.kind, statement=excluded.statement, "
+        "status=excluded.status, confidence=excluded.confidence, updated_at=excluded.updated_at",
+        (fact_id, job_id, kind, statement, now, now),
+    )
+    upsert_search(conn, "facts", fact_id)
+    return fact_id
+
+
+def job_family_state(conn, root_id: str) -> tuple[str, str]:
+    statement = job_fact(conn, root_id, "JOB_FAMILY_STATUS")
+    if not statement:
+        return "OPEN", "not marked saturated"
+    state, separator, note = statement.partition(" | ")
+    normalized = state.strip().upper()
+    if normalized not in {"OPEN", "SATURATED"}:
+        return "OPEN", statement
+    return normalized, note.strip() if separator else ""
+
+
+def job_view(conn, row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+    item = dict(row)
+    parent = job_parent(conn, item["id"])
+    root = job_family_root(conn, item["id"])
+    family_status, family_note = job_family_state(conn, root)
+    item.update(
+        {
+            "variant_of": parent,
+            "family_root": root,
+            "family_status": family_status,
+            "family_note": family_note,
+            "variant_delta": job_fact(conn, item["id"], "JOB_VARIANT_DELTA"),
+            "inherited_coverage": job_fact(conn, item["id"], "JOB_INHERITED_COVERAGE"),
+            "variant_distinctness": job_fact(conn, item["id"], "JOB_VARIANT_DISTINCTNESS"),
+            "next_check": job_fact(conn, item["id"], "JOB_NEXT_CHECK"),
+        }
+    )
+    return item
+
+
 def related_candidates(conn, text: str, limit: int = 10) -> list[dict[str, Any]]:
     def add_unique(rows: list[dict[str, Any]], row: dict[str, Any]) -> None:
         key = (row["record_type"], row["record_id"])
@@ -1215,24 +1265,166 @@ def cmd_job_upsert(args) -> None:
     status = require_status(args.status, JOB_STATUSES, "job status")
     job_id = args.id or stable_id("job", args.goal)
     now = utcnow()
+    existing = conn.execute("SELECT * FROM investigations WHERE id = ?", (job_id,)).fetchone()
+    current_parent = job_parent(conn, job_id)
+    if args.variant_of == job_id:
+        raise ValueError("a Job cannot be a variant of itself")
+    if args.variant_of and current_parent and args.variant_of != current_parent:
+        raise ValueError(
+            f"job already belongs to a different parent: {job_id} VARIANT_OF {current_parent}"
+        )
+    variant_parent = args.variant_of or current_parent
+    if variant_parent:
+        if conn.execute(
+            "SELECT 1 FROM investigations WHERE id=? AND mode='JOB'", (variant_parent,)
+        ).fetchone() is None:
+            raise ValueError(f"variant parent job not found: {variant_parent}")
+        if job_id in job_lineage(conn, variant_parent) or variant_parent == job_id:
+            raise ValueError(f"VARIANT_OF would create a cycle: {job_id} -> {variant_parent}")
+        root = job_family_root(conn, variant_parent)
+        family_status, family_note = job_family_state(conn, root)
+        creating_variant = bool(args.variant_of and not current_parent)
+        if (
+            family_status == "SATURATED"
+            and not args.reopen_family_reason
+            and (creating_variant or status in {"ACTIVE", "NEXT", "PARKED"})
+        ):
+            raise ValueError(
+                f"Job family {root} is SATURATED: {family_note}; provide "
+                "--reopen-family-reason with genuinely new evidence or rotate to another family"
+            )
+        if args.variant_of and not current_parent:
+            if not all((args.variant_delta, args.inherits, args.distinctness, args.next_check)):
+                raise ValueError(
+                    "new Job variants require --variant-delta, --inherits, --distinctness, and "
+                    "--next-check so reused coverage and the new falsifiable causal path are explicit"
+                )
+    elif args.variant_delta or args.inherits or args.distinctness:
+        raise ValueError(
+            "variant metadata requires --variant-of or an existing variant Job"
+        )
+    if existing and not variant_parent:
+        root = job_family_root(conn, job_id)
+        family_status, family_note = job_family_state(conn, root)
+        if (
+            family_status == "SATURATED"
+            and status in {"ACTIVE", "NEXT", "PARKED"}
+            and not args.reopen_family_reason
+        ):
+            raise ValueError(
+                f"Job family {root} is SATURATED: {family_note}; provide "
+                "--reopen-family-reason with genuinely new evidence or rotate to another family"
+            )
+    if args.reopen_family_reason and not (existing or variant_parent):
+        raise ValueError("--reopen-family-reason requires an existing Job family")
+    if args.saturate_family and status != "DONE":
+        raise ValueError("--saturate-family requires the Job status DONE")
+    started_at = existing["started_at"] if existing else now
+    ended_at = now if status in {"DONE", "BLOCKED"} else None
+    result = args.result if args.result is not None else (existing["result"] if existing else "")
+    if status in {"DONE", "BLOCKED"} and not result.strip():
+        raise ValueError(
+            f"{status} job requires --result with coverage boundary, disposition, unresolved segments, "
+            "and reopen condition"
+        )
     if status == "ACTIVE":
         conn.execute(
             "UPDATE investigations SET status='NEXT', ended_at=NULL "
             "WHERE mode='JOB' AND status='ACTIVE' AND id<>?",
             (job_id,),
         )
-    existing = conn.execute("SELECT * FROM investigations WHERE id = ?", (job_id,)).fetchone()
-    started_at = existing["started_at"] if existing else now
-    ended_at = now if status in {"DONE", "BLOCKED"} else None
     conn.execute(
         "INSERT INTO investigations(id, mode, goal, status, result, started_at, ended_at) "
         "VALUES(?, 'JOB', ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET "
         "goal=excluded.goal, status=excluded.status, result=excluded.result, ended_at=excluded.ended_at",
-        (job_id, args.goal, status, args.result or "", started_at, ended_at),
+        (job_id, args.goal, status, result, started_at, ended_at),
     )
+    upsert_search(conn, "investigations", job_id)
+    if args.variant_of and not current_parent:
+        conn.execute(
+            "INSERT INTO relations(id, src_id, type, dst_id, summary, status, confidence, created_at, updated_at) "
+            "VALUES(?, ?, 'VARIANT_OF', ?, ?, 'INFERRED', 0.5, ?, ?)",
+            (
+                relation_id(job_id, "VARIANT_OF", args.variant_of),
+                job_id,
+                args.variant_of,
+                "reuses parent coverage but tests a materially different causal path",
+                now,
+                now,
+            ),
+        )
+    if args.variant_delta:
+        upsert_job_fact(conn, job_id, "JOB_VARIANT_DELTA", args.variant_delta, now)
+    if args.inherits:
+        upsert_job_fact(conn, job_id, "JOB_INHERITED_COVERAGE", args.inherits, now)
+    if args.distinctness:
+        upsert_job_fact(conn, job_id, "JOB_VARIANT_DISTINCTNESS", args.distinctness, now)
+    if args.next_check:
+        upsert_job_fact(conn, job_id, "JOB_NEXT_CHECK", args.next_check, now)
+    root = job_family_root(conn, job_id)
+    if args.reopen_family_reason:
+        upsert_job_fact(conn, root, "JOB_FAMILY_STATUS", f"OPEN | {args.reopen_family_reason}", now)
+    if args.saturate_family:
+        upsert_job_fact(conn, root, "JOB_FAMILY_STATUS", f"SATURATED | {result}", now)
+    view = job_view(conn, conn.execute("SELECT * FROM investigations WHERE id=?", (job_id,)).fetchone())
     conn.commit()
     conn.close()
-    emit({"ok": True, "id": job_id, "status": status})
+    emit({"ok": True, **view})
+
+
+def cmd_job_list(args) -> None:
+    conn = connect(repo_path(args))
+    limit = min(max(args.limit, 1), 100)
+    clauses = ["mode='JOB'"]
+    params: list[Any] = []
+    if args.status:
+        clauses.append("status=?")
+        params.append(require_status(args.status, JOB_STATUSES, "job status"))
+    if args.linked_record:
+        clauses.append(
+            "EXISTS (SELECT 1 FROM relations r WHERE "
+            "(r.src_id=investigations.id AND r.dst_id=?) OR "
+            "(r.dst_id=investigations.id AND r.src_id=?))"
+        )
+        params.extend([args.linked_record, args.linked_record])
+    requested_root = None
+    scan_limit = limit
+    if args.family:
+        if conn.execute(
+            "SELECT 1 FROM investigations WHERE id=? AND mode='JOB'", (args.family,)
+        ).fetchone() is None:
+            raise ValueError(f"job not found: {args.family}")
+        requested_root = job_family_root(conn, args.family)
+        scan_limit = 500
+    params.append(scan_limit)
+    rows = as_dicts(
+        conn.execute(
+            "SELECT * FROM investigations WHERE "
+            + " AND ".join(clauses)
+            + " ORDER BY CASE status WHEN 'ACTIVE' THEN 0 WHEN 'NEXT' THEN 1 "
+            "WHEN 'PARKED' THEN 2 WHEN 'BLOCKED' THEN 3 WHEN 'DONE' THEN 4 ELSE 5 END, "
+            "started_at DESC LIMIT ?",
+            params,
+        )
+    )
+    rows = [job_view(conn, row) for row in rows]
+    if requested_root:
+        rows = [row for row in rows if row["family_root"] == requested_root][:limit]
+    for row in rows:
+        linked = conn.execute(
+            "SELECT CASE WHEN src_id=? THEN dst_id ELSE src_id END AS record_id "
+            "FROM relations WHERE src_id=? OR dst_id=? ORDER BY record_id",
+            (row["id"], row["id"], row["id"]),
+        ).fetchall()
+        row["linked_records"] = [item["record_id"] for item in linked]
+    conn.close()
+    emit(
+        {
+            "count": len(rows),
+            "rows": rows,
+            "bounds": {"limit": limit, "family_scan_limit": scan_limit if requested_root else None},
+        }
+    )
 
 
 def cmd_observation_add(args) -> None:
@@ -1311,19 +1503,43 @@ def cmd_research_packet(args) -> None:
     job = conn.execute("SELECT * FROM investigations WHERE id=? AND mode='JOB'", (args.job_id,)).fetchone()
     if job is None:
         raise ValueError(f"job not found: {args.job_id}")
+    job_item = job_view(conn, job)
+    lineage = job_lineage(conn, args.job_id)
     linked_relations = as_dicts(
         conn.execute(
             "SELECT * FROM relations WHERE src_id=? OR dst_id=? ORDER BY id LIMIT ?",
             (args.job_id, args.job_id, args.limit),
         )
     )
+    inherited_relations: list[dict[str, Any]] = []
+    inherited_relation_ids: set[str] = set()
+    for ancestor_id in lineage:
+        remaining = args.limit - len(inherited_relations)
+        if remaining <= 0:
+            break
+        rows = as_dicts(
+            conn.execute(
+                "SELECT * FROM relations WHERE (src_id=? OR dst_id=?) AND type<>'VARIANT_OF' "
+                "ORDER BY id LIMIT ?",
+                (ancestor_id, ancestor_id, remaining),
+            )
+        )
+        for row in rows:
+            if row["id"] in inherited_relation_ids:
+                continue
+            row["inherited_from_job"] = ancestor_id
+            inherited_relations.append(row)
+            inherited_relation_ids.add(row["id"])
+    packet_relations = linked_relations + inherited_relations
+    family_job_ids = {args.job_id, *lineage}
     linked_ids = {
         edge[side]
-        for edge in linked_relations
+        for edge in packet_relations
         for side in ("src_id", "dst_id")
-        if edge[side] != args.job_id
+        if edge[side] not in family_job_ids
     }
     linked: dict[str, list[dict[str, Any]]] = {
+        "jobs": [],
         "nodes": [],
         "impact_goals": [],
         "invariants": [],
@@ -1333,8 +1549,20 @@ def cmd_research_packet(args) -> None:
         "live_evidence": [],
     }
     deferred_ids: set[str] = set()
+    if job_item["variant_of"]:
+        parent = conn.execute(
+            "SELECT * FROM investigations WHERE id=? AND mode='JOB'", (job_item["variant_of"],)
+        ).fetchone()
+        if parent:
+            linked["jobs"].append(job_view(conn, parent))
     for record_id in sorted(linked_ids):
-        if record_id.startswith("impact:"):
+        if record_id.startswith("JOB-"):
+            row = conn.execute(
+                "SELECT * FROM investigations WHERE id=? AND mode='JOB'", (record_id,)
+            ).fetchone()
+            if row:
+                linked["jobs"].append(job_view(conn, row))
+        elif record_id.startswith("impact:"):
             row = conn.execute("SELECT * FROM impact_goals WHERE id=?", (record_id,)).fetchone()
             if row:
                 item = dict(row)
@@ -1375,7 +1603,8 @@ def cmd_research_packet(args) -> None:
             row = conn.execute("SELECT * FROM invariants WHERE id=?", (record_id,)).fetchone()
             if row:
                 linked["invariants"].append(dict(row))
-    if linked_relations:
+    graph_relations = [row for row in linked_relations if row["type"] != "VARIANT_OF"] + inherited_relations
+    if graph_relations:
         context_hits = []
     else:
         try:
@@ -1400,8 +1629,9 @@ def cmd_research_packet(args) -> None:
     conn.close()
     emit(
         {
-            "job": dict(job),
+            "job": job_item,
             "linked_relations": linked_relations,
+            "inherited_relations": inherited_relations,
             "linked": linked,
             "context_hits": context_hits,
             "job_facts": job_facts,
@@ -1409,8 +1639,8 @@ def cmd_research_packet(args) -> None:
             "bounds": {
                 "limit": args.limit,
                 "source_text_included": False,
-                "retrieval": "explicit-relations-first",
-                "fts_fallback_used": not linked_relations,
+                "retrieval": "explicit-relations-first-with-family-inheritance",
+                "fts_fallback_used": not graph_relations,
             },
         }
     )
@@ -1537,7 +1767,6 @@ CHECKPOINT_TABLES = [
     "nodes",
     "relations",
     "evidence",
-    "protocol_profiles",
     "invariants",
     "impact_goals",
     "facts",
@@ -1677,23 +1906,6 @@ def build_parser() -> argparse.ArgumentParser:
     snapshot.add_argument("--scope-file", help="newline-delimited scope manifest")
     snapshot.set_defaults(func=cmd_snapshot)
 
-    profile = sub.add_parser("profile-set", help="set protocol archetypes and concrete case")
-    add_repo(profile)
-    profile.add_argument("--name", required=True)
-    profile.add_argument("--archetype", action="append", required=True)
-    profile.add_argument("--case", required=True)
-    profile.add_argument("--asset", action="append")
-    profile.add_argument("--role", action="append")
-    profile.add_argument("--integration", action="append")
-    profile.set_defaults(func=cmd_profile_set)
-
-    seed = sub.add_parser("impact-seed", help="seed draft impacts for current archetypes")
-    add_repo(seed)
-    seed.set_defaults(func=cmd_impact_seed)
-
-    catalog = sub.add_parser("catalog-list", help="list built-in impact templates")
-    catalog.set_defaults(func=cmd_catalog_list)
-
     invariant = sub.add_parser("invariant-upsert", help="create or update an invariant")
     add_repo(invariant)
     invariant.add_argument("--id", required=True)
@@ -1707,7 +1919,7 @@ def build_parser() -> argparse.ArgumentParser:
     impact = sub.add_parser("impact-upsert", help="create or refine a protocol-specific impact")
     add_repo(impact)
     impact.add_argument("--id", required=True)
-    impact.add_argument("--archetype")
+    impact.add_argument("--archetype", help="optional retrieval family; defaults to protocol")
     impact.add_argument("--title")
     impact.add_argument("--invariant-id")
     impact.add_argument("--protocol-case")
@@ -1786,7 +1998,29 @@ def build_parser() -> argparse.ArgumentParser:
     job.add_argument("--goal", required=True)
     job.add_argument("--status", default="NEXT")
     job.add_argument("--result")
+    job.add_argument("--variant-of", help="parent Job whose proven coverage this variant reuses")
+    job.add_argument("--variant-delta", help="materially different causal path tested by this variant")
+    job.add_argument("--inherits", help="specific parent graph, evidence, and killed paths not repeated")
+    job.add_argument("--distinctness", help="why the variant can produce a result its parent could not")
+    job.add_argument("--next-check", help="cheapest falsification check for this Job or variant")
+    job.add_argument(
+        "--saturate-family",
+        action="store_true",
+        help="mark this DONE Job family exhausted for the currently known evidence",
+    )
+    job.add_argument(
+        "--reopen-family-reason",
+        help="new code, graph, deployment, integration, or evidence that invalidates saturation",
+    )
     job.set_defaults(func=cmd_job_upsert)
+
+    jobs = sub.add_parser("job-list", help="list bounded current and prior research jobs")
+    add_repo(jobs)
+    jobs.add_argument("--status")
+    jobs.add_argument("--linked-record", help="only jobs linked to this impact, invariant, or graph record")
+    jobs.add_argument("--family", help="only Jobs in the same variant family as this Job ID")
+    jobs.add_argument("--limit", type=int, default=30)
+    jobs.set_defaults(func=cmd_job_list)
 
     observation = sub.add_parser("observation-add", help="record a job-scoped observation")
     add_repo(observation)

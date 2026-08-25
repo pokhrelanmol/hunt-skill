@@ -20,7 +20,7 @@ Select only dimensions that could materially answer whether that forbidden state
 
 ## Backward Path: Impact To Trigger
 
-1. Select one meaningful attacker objective from the impact catalog.
+1. Select one meaningful attacker objective derived from the current protocol.
 2. Define the exact forbidden state and sensitive consumer.
 3. Walk backward through the consumer's inputs, reads, guards, calculations, and dependencies.
 4. Enumerate local write paths, lifecycle transitions, economic/accounting counterparts, and external systems that can shape those inputs.
@@ -53,9 +53,9 @@ Prioritize interactions among:
 - external vaults, lending markets, AMMs, bridges, oracles, and tokens;
 - delayed checkpoints, epochs, finality, and governance/config changes.
 
-## Pattern-Inspiration Fallback
+## Additional Pattern Expansion
 
-Use this only when the bounded forward/backward pass cannot produce a useful lead or discriminating next check.
+The job-idea pass may already have used one real finding to extract an edge case or composition. Use an additional historical search only when the bounded forward/backward pass cannot produce a useful lead or discriminating next check.
 
 1. Choose the highest-value unresolved impact goal or external integration.
 2. Search historical findings for the same invariant, decision point, bad state, and attacker primitive.

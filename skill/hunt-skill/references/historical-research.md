@@ -4,15 +4,15 @@ Historical material supplies hypotheses and duplicate checks. It does not replac
 
 ## Two Permitted Modes
 
-### Fallback Inspiration
+### Job-Idea Generation
 
-Use this only after a bounded first-principles and state-consistency hunt fails to produce a useful lead.
+Use this after basic RECON through [agent-driven job ideation](job-ideation.md).
 
-1. Select one `READY` protocol impact, invariant, or material external integration.
-2. Search similar findings by protocol archetype, economic decision, bad state, and attacker primitive.
-3. Extract the historical root cause and required conditions, not its title alone.
-4. Convert it into a question about the current protocol.
-5. Return to current code and independently trace reachability, state mutation, blockers, and impact.
+1. Start from a locally derived invariant, decision point, or attacker objective; select only checklist questions with concrete current-code triggers.
+2. For the highest-value seed, inspect at most one closely related accepted finding or reproduced exploit when available.
+3. Extract `prerequisite -> primitive -> trusted consumer -> consequence`, not the report title or exact protocol sequence.
+4. Test both the direct issue and nearby edge-case/composition variants against the current graph.
+5. Promote only a graph-anchored job; additional historical search is allowed if the active code-led investigation later stalls.
 
 Do not import the old finding as a hypothesis with positive confidence. Start it as `UNKNOWN` or `LEAD` until current code supports it.
 
@@ -27,19 +27,19 @@ Use this after a local hypothesis survives falsification.
 
 ## Research Order
 
-1. Anchor the search to local code, a `READY` protocol impact/invariant, or a material external integration.
-2. Search repository-known issues and bundled audits first.
-3. Search Solodit using the root cause, protocol archetype, invariant, and integration name when `SOLODIT_API_KEY` and tooling are available.
-4. Review similar protocol audits for the same economic decision and attacker flow.
-5. Search the EVM Hack Registry for incident mechanics and missing variants.
-6. For inspiration, return matches to local code as questions. For validation, record overlaps in SQLite and explain why the root cause is duplicate, distinct, or unclear.
+1. Anchor the search to local code, a protocol impact/invariant, or a material external integration.
+2. Use only the relevant domain from the [Cyfrin audit checklist](https://github.com/Cyfrin/audit-checklist) or [EVM Audit Skills](https://github.com/austintgriffith/evm-audit-skills); do not import their full catalogs or workflows.
+3. Search repository-known issues and bundled audits.
+4. Search Solodit using the root cause, protocol mechanism, invariant, and integration name when `SOLODIT_API_KEY` and tooling are available.
+5. Search the [EVM Hack Registry](https://github.com/sanbir/evm-hack-registry) for reproduced incident mechanics and missing variants.
+6. Return matches to local code as questions. For validation, record overlaps in SQLite and explain why the root cause is duplicate, distinct, or unclear.
 
 ## Search Form
 
 Avoid broad labels such as `reentrancy` or `oracle`. Combine:
 
 ```text
-protocol archetype + invariant + decision point + attacker primitive
+protocol mechanism + invariant + decision point + attacker primitive
 ```
 
 Examples:

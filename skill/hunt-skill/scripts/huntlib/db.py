@@ -86,17 +86,6 @@ CREATE TABLE IF NOT EXISTS evidence (
 CREATE INDEX IF NOT EXISTS idx_evidence_record ON evidence(record_type, record_id);
 CREATE INDEX IF NOT EXISTS idx_evidence_file ON evidence(file_path);
 
-CREATE TABLE IF NOT EXISTS protocol_profiles (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    archetypes_json TEXT NOT NULL,
-    protocol_case TEXT NOT NULL,
-    assets_json TEXT NOT NULL DEFAULT '[]',
-    roles_json TEXT NOT NULL DEFAULT '[]',
-    integrations_json TEXT NOT NULL DEFAULT '[]',
-    updated_at TEXT NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS invariants (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
@@ -244,6 +233,7 @@ SEARCHABLE_TABLES = {
         ("title", "protocol_case", "decision_point", "bad_state", "attacker_goal"),
     ),
     "hypotheses": ("id", ("title", "claim", "root_cause_key", "next_check")),
+    "investigations": ("id", ("goal", "result")),
     "known_findings": ("id", ("title", "root_cause", "affected_area", "resolution")),
 }
 
