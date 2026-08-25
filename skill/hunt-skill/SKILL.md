@@ -16,19 +16,19 @@ python3 "${SKILL_ROOT}/scripts/auditctl.py" <command> --repo <target>
 ## Non-Negotiable Rules
 
 1. Keep code as the primary source of truth. Label consequential claims `VERIFIED`, `INFERRED`, or `UNKNOWN`.
-2. Default to `CHAT`/`NORMAL_HUNT`. Never begin `FULL AUDIT` unless the user explicitly requests a full audit, complete audit, full scan, autonomous full audit, audit everything in scope, or audit the full codebase.
+2. Default to `CHAT` or one bounded `HUNT` job. Work autonomously inside the current research question, then ask for human steering before changing direction.
 3. Hunt both directions: start from reachable primitives and ask what they can break; start from meaningful impacts and search backward for reachable flows.
 4. Build protocol-specific impact goals. A generic vault/lending/bridge checklist is only a seed and cannot be marked `READY` until tied to this protocol's invariant, decision point, bad state, attacker goal, and candidate primitives.
 5. Build a detailed, useful SQLite graph before hunting. The graph is not a formality: it must let the agent answer how attacker entrypoints, guards, calls, arguments, returns, storage reads/writes, token/accounting effects, external integrations, and later sensitive consumers connect for the active impact. If the graph cannot answer the active job's reachability/effect questions, stop and deepen RECON instead of hunting from source-reading memory.
 6. Prefer compiler AST/build artifacts and deterministic local tools for mechanical relationships. Never ask a model to reconstruct a transitive call graph when compiler-resolved evidence is available.
-7. Normal interactive HUNT needs sufficient broad RECON plus deep deterministic graph/context coverage for the active job's relevant surface. Full-audit mode requires broader graph coverage for the agenda. Missing or unresolved information must be represented explicitly as `UNKNOWN`, never silently omitted.
+7. HUNT needs sufficient broad RECON plus deep deterministic graph/context coverage for the active job's relevant surface. Missing or unresolved information must be represented explicitly as `UNKNOWN`, never silently omitted.
 8. Treat every lead as an allegation. Trace reachability, state mutation, later consumption, blockers, economics, live configuration, and the strongest safe explanation.
 9. Use historical pattern matching in two bounded modes: as fallback inspiration when code-led hunting stalls, and as validation/novelty screening for a concrete finding. A match creates a local question; it never proves the current protocol is vulnerable.
 10. Use bounded SQLite queries. Do not load the complete database, all checkpoints, or large Markdown notebooks into context.
 11. Use the installed Tenderly skill first for simulations, traces, forks, and state overrides. Use `cast` for narrow read-only facts. Pin chain, block, address, code hash when available, and observation time.
 12. Once a hypothesis is `CODE_VALIDATED`, PoC work is part of the same research question: run `poc-handoff`, read the configured dedicated PoC skill's `SKILL.md`, and attempt the strongest practical proof. Ask the user only when the PoC environment or material data is missing.
 13. Do not modify production contracts during setup, reconnaissance, or indexing.
-14. In `NORMAL_HUNT`, the same research question means autonomous work; a new research direction requires explaining the recommendation and asking the user before switching. In `FULL_AUDIT`, automatically continue to the next highest-value unresolved agenda job until the stop condition in [workflows/full-audit.md](workflows/full-audit.md) is met.
+14. The same research question means autonomous work; a new research direction requires explaining the recommendation and asking the user before switching.
 15. Treat user-provided protocol context as useful but unverified. Store it as `USER_CONTEXT`, link likely affected records, verify before relying on it, and check whether it changes active jobs, rejected hypotheses, or parked directions.
 16. Treat edge cases as reachable intersections of otherwise valid states, identities, modes, or lifecycle stages. For each active impact, compare the full logical context a sensitive consumer assumes with the context actually bound by identifiers, resource keys, proofs, callbacks, cached records, and validation. Persist a bounded lead when distinct contexts can collide or when a producer proves/returns something weaker, narrower, or different from what its consumer assumes; do not dismiss it merely because the configuration is uncommon.
 
@@ -38,12 +38,11 @@ python3 "${SKILL_ROOT}/scripts/auditctl.py" <command> --repo <target>
 |---|---|---|
 | Question, confusion, attack idea, continuation | `CHAT` | [workflows/chat.md](workflows/chat.md) |
 | Architecture, relationships, value/state flow | `RECON` | [workflows/recon.md](workflows/recon.md) |
-| Concrete module, invariant, flow, or impact after RECON gate | `NORMAL_HUNT` / `HUNT` | [workflows/hunt.md](workflows/hunt.md) |
+| Concrete module, invariant, flow, or impact after RECON gate | `HUNT` | [workflows/hunt.md](workflows/hunt.md) |
 | One hypothesis requiring falsification | `VALIDATE` | [workflows/validate.md](workflows/validate.md) |
 | Automatic proof handoff or final write-up | `PROVE` | [workflows/prove.md](workflows/prove.md) |
-| Explicit full audit, complete audit, full scan, audit everything in scope, audit the full codebase, autonomous full audit | `FULL_AUDIT` / `FULL AUDIT` | [workflows/full-audit.md](workflows/full-audit.md) |
 
-If intent is ambiguous, answer in `CHAT` or `NORMAL_HUNT` and name the next discriminating check. Do not infer `FULL_AUDIT` from "hunt", "find bugs", "scan this function", "look at this protocol", or "go deeper".
+If intent is ambiguous, answer in `CHAT` or `HUNT` and name the next discriminating check.
 
 ## Universal Phases
 
@@ -57,16 +56,15 @@ If intent is ambiguous, answer in `CHAT` or `NORMAL_HUNT` and name the next disc
 4. Initialize with [workflows/sqlite-setup.md](workflows/sqlite-setup.md) only when needed.
 5. If this is a new audit, use existing RECON/profile/snapshot/graph mechanisms to establish architecture, actors, assets, value flow, lifecycles, integrations, intended behavior, and material invariants before hunting.
 6. Ask the user only for material missing context that docs/code cannot establish; record non-material unknowns as `UNKNOWN` and continue.
-7. If the requested mode is `NORMAL_HUNT`, run [RECON](workflows/recon.md) first for broad protocol context, then deepen local graph coverage only for the chosen active job.
-8. If the requested mode is `FULL_AUDIT`, run `mode-set --mode FULL_AUDIT`, then follow [workflows/full-audit.md](workflows/full-audit.md).
+7. Before HUNT, run [RECON](workflows/recon.md) for broad protocol context, then deepen local graph coverage only for the chosen active job.
 
-**Exit:** The active source snapshot and audit mode are explicit.
+**Exit:** The active source snapshot and research question are explicit.
 
 ### Phase 2: Retrieve Bounded Context
 
 **Entry:** Scope and question are explicit.
 
-1. Before HUNT/VALIDATE/FULL_AUDIT job execution, prove that graph records exist for the active surface: relevant functions, storage/state, assets/roles/external systems, call edges, read/write/effect edges, and job/impact links. If these records are missing or only superficial, return to RECON and build them.
+1. Before HUNT or VALIDATE job execution, prove that graph records exist for the active surface: relevant functions, storage/state, assets/roles/external systems, call edges, read/write/effect edges, and job/impact links. If these records are missing or only superficial, return to RECON and build them.
 2. Query `search`, `neighbors`, `path`, or `context` with small limits.
 3. For active research, use `research-packet` or an equivalent bounded query around one `JOB`; do not reload the whole database or regenerate the protocol model.
 4. For an entrypoint, retrieve exact call sites, parameter bindings, return use, runtime targets, direct effects, and shortest effective-effect paths before opening its transitive source tree.
@@ -109,7 +107,7 @@ If intent is ambiguous, answer in `CHAT` or `NORMAL_HUNT` and name the next disc
 **Entry:** The investigation reached a stable disposition.
 
 1. Update only compact `.audit/INDEX.md`, `.audit/CURRENT.md`, `.audit/LEADS.md`, and `.audit/REJECTIONS.md` summaries that changed.
-2. Keep detailed relationships, evidence, history, and coverage in SQLite.
+2. Keep detailed relationships, evidence, and history in SQLite.
 3. Export deterministic JSONL only for portability, review, or a requested checkpoint.
 
 **Exit:** A new session can resume from IDs and bounded queries without replaying the conversation.
@@ -142,8 +140,7 @@ If intent is ambiguous, answer in `CHAT` or `NORMAL_HUNT` and name the next disc
 ## Success Criteria
 
 - Scope and source freshness are pinned.
-- Basic global RECON is sufficient for normal interactive HUNT; deep deterministic coverage is required for the active job's relevant surface.
-- Full-audit mode can still require every scoped state-changing entrypoint to have explicit call-site, argument, return-use, direct-effect, and effective-effect coverage, including explicit zero-result coverage where applicable.
+- Basic global RECON is sufficient before HUNT; deep deterministic coverage is required for the active job's relevant surface.
 - Runtime dispatch candidates are separated from live-confirmed implementations, and supporting test code does not contaminate production paths.
 - Every important relation and claim has status, confidence, and evidence or an explicit unknown.
 - Impact goals combine a protocol invariant with a concrete protocol case.

@@ -177,15 +177,6 @@ CREATE TABLE IF NOT EXISTS investigations (
     ended_at TEXT
 );
 
-CREATE TABLE IF NOT EXISTS coverage (
-    target_id TEXT NOT NULL,
-    lens TEXT NOT NULL,
-    status TEXT NOT NULL,
-    investigation_id TEXT,
-    last_seen TEXT NOT NULL,
-    PRIMARY KEY(target_id, lens)
-);
-
 CREATE TABLE IF NOT EXISTS known_findings (
     id TEXT PRIMARY KEY,
     source_kind TEXT NOT NULL,

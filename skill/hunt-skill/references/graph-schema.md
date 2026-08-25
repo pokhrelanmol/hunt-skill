@@ -41,12 +41,9 @@ Call-site identity must include the caller plus a compiler/source identity such 
 | `known_findings`, `novelty_checks` | Historical precedents and duplicate screening. |
 | `live_evidence` | Chain/block/address-bound configuration, simulation, and trace observations. |
 | `investigations` | Research jobs; use mode `JOB` and keep only one `ACTIVE` job at a time. |
-| `coverage` | Full-audit surface/invariant/sensitive-decision coverage status keyed by target and lens. |
 | `manual_approvals` | Legacy approval records retained for old databases, not the normal PoC path. |
 
 The current generic records can represent deterministic RECON facts as typed nodes, relations, and evidence. Do not claim that a dedicated normalized dataflow table exists unless the installed tooling actually provides one.
-
-Persist the current audit driver in `meta.hunt_mode` as `NORMAL_HUNT` or `FULL_AUDIT`. `FULL_AUDIT` resumes from the active `JOB`, `NEXT` agenda, and `coverage` rows instead of stopping after one resolved job.
 
 ## Required RECON Records
 
@@ -77,7 +74,7 @@ If the available deterministic tooling cannot populate a field, store the missin
 
 ## Graph Usefulness Gate
 
-Before HUNT or FULL_AUDIT job execution, query the graph. A useful active-job graph has:
+Before HUNT job execution, query the graph. A useful active-job graph has:
 
 - `JOB` linked to the impact/invariant being tested;
 - graph nodes for relevant attacker entrypoints, sensitive consumers, state roots, roles/assets, and external dependencies;

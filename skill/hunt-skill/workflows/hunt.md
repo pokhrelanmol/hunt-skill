@@ -1,10 +1,10 @@
 # HUNT Workflow
 
-HUNT is one meaningful `ACTIVE` job attacking one protocol-specific impact, not a category scan or batch queue. Work autonomously inside the current research question. In normal interactive HUNT, stop before switching to an independent direction; in FULL AUDIT, [full-audit.md](full-audit.md) may feed the next agenda job into this same workflow.
+HUNT is one meaningful `ACTIVE` job attacking one protocol-specific impact, not a category scan or batch queue. Work autonomously inside the current research question, then stop before switching to an independent direction.
 
 ## Entry Gate
 
-For normal interactive hunting, require broad protocol context from RECON: scope, architecture, actors, assets, value flow, integrations, lifecycles, and important invariants. Do not require perfect deterministic coverage for every state-changing entrypoint before the first hunt.
+Require broad protocol context from RECON: scope, architecture, actors, assets, value flow, integrations, lifecycles, and important invariants. Do not require perfect deterministic coverage for every state-changing entrypoint before the first hunt.
 
 For the `ACTIVE` job, require deep local graph/context coverage for the relevant subsystem, function, state, integration, or impact. If local call/effect/argument coverage is stale or missing, deepen RECON only for that surface.
 
@@ -41,7 +41,7 @@ Before tracing, make the job precise:
 10. Preserve a `LEAD` when a context collision or producer/consumer mismatch reaches a sensitive consumer but a material prerequisite or consequence remains unknown. Kill it only with concrete separation, rebinding, harmlessness, or recovery evidence.
 11. Falsify serious hypotheses across all material dimensions: reachability, permissions, ordering, sync/correction, external reachability, live config, timing, liquidity/capital, actual impact, victim requirements, intended behavior, and known/duplicate issues.
 12. Conclude the `ACTIVE` job as `DONE`, `BLOCKED`, or with a linked hypothesis.
-13. Persist the result, explain what was learned/rejected/uncertain/suspicious, recommend the next highest-value direction, and stop for human steering unless the persisted mode is `FULL_AUDIT`.
+13. Persist the result, explain what was learned/rejected/uncertain/suspicious, recommend the next highest-value direction, and stop for human steering.
 
 ## Pattern Fallback
 

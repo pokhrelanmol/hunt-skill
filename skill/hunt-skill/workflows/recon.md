@@ -1,12 +1,11 @@
 # RECON Workflow
 
-RECON has two depths: basic global context for normal interactive hunting, and deep deterministic local coverage for the active job. Explicit full-audit mode may still require broad systematic coverage.
+RECON has two depths: basic global context for interactive hunting, and deep deterministic local coverage for the active job.
 
 ## Phase 1: Bound The Map
 
 1. Lock a clean commit or explicit baseline snapshot, exact primary scope, production dependencies, and supporting-only paths.
 2. Classify tests, mocks, handlers, harnesses, and deployment scripts as supporting context.
-3. Identify whether the user wants normal interactive hunting or explicit full-audit coverage.
 
 **Exit:** Scope, baseline, support-only paths, and recon depth are explicit.
 
@@ -53,9 +52,9 @@ RECON has two depths: basic global context for normal interactive hunting, and d
 
 ## Phase 6: Gates
 
-The graph gate is a hard blocker. Do not advance into HUNT/FULL_AUDIT job execution with placeholder nodes, orphan records, or graph entries that do not answer the active impact's reachability/effect questions.
+The graph gate is a hard blocker. Do not advance into HUNT job execution with placeholder nodes, orphan records, or graph entries that do not answer the active impact's reachability/effect questions.
 
-For normal interactive HUNT:
+For HUNT:
 
 1. Run `lint`, `stale`, and bounded orphan checks for the relevant records.
 2. Confirm the `ACTIVE` job is linked to at least one concrete impact/invariant, one sensitive consumer or state root, and the relevant attacker-accessible entrypoint or explicit `UNKNOWN`.
@@ -64,10 +63,4 @@ For normal interactive HUNT:
 5. Confirm graph queries can retrieve a backward path from sensitive consumer to trusted state/source and a forward path from attacker-accessible action to relevant mutation/effect, or store the missing segment as `UNKNOWN` with the next extraction step.
 6. Let local `UNKNOWN`s block or shape the active job; do not block the whole audit unless the missing fact is globally material.
 
-For explicit full-audit mode:
-
-1. Confirm every scoped state-changing entrypoint has extraction coverage, including zero-call or zero-effect records.
-2. Confirm resolvable calls, parameter bindings, return-use, direct/effective-effect coverage, unresolved calls, production contamination checks, dangling edges, and verified evidence support across the full pinned scope.
-3. Confirm each agenda job has enough graph links to be hunted with `research-packet`; jobs without links stay `NEXT`/`BLOCKED` and trigger more RECON, not source-only hunting.
-
-**Exit:** Interactive HUNT starts after sufficient broad context and deep local coverage for the active job. Full-audit HUNT waits for the broader gate.
+**Exit:** HUNT starts after sufficient broad context and deep local coverage for the active job.

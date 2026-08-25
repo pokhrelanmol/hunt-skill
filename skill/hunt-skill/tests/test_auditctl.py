@@ -153,51 +153,6 @@ class AuditCtlTests(unittest.TestCase):
         neighbors = self.run_cli("neighbors", function_id)
         self.assertEqual(neighbors["relations"][0]["id"], relation["id"])
 
-    def test_full_audit_mode_persists_agenda_and_coverage(self) -> None:
-        self.setup_store()
-        self.run_cli(
-            "job-upsert",
-            "--id",
-            "JOB-001",
-            "--goal",
-            "Can partial liquidation leave debt/collateral inconsistent before a later borrow?",
-            "--status",
-            "ACTIVE",
-        )
-        self.run_cli(
-            "job-upsert",
-            "--id",
-            "JOB-002",
-            "--goal",
-            "Can oracle value be consumed before synchronization?",
-            "--status",
-            "NEXT",
-        )
-        mode = self.run_cli("mode-set", "--mode", "FULL_AUDIT")
-        self.assertEqual(mode["mode"], "FULL_AUDIT")
-        self.assertEqual(mode["active_job"]["id"], "JOB-001")
-        current = (self.repo / ".audit" / "CURRENT.md").read_text(encoding="utf-8")
-        self.assertIn("Mode: FULL_AUDIT", current)
-        self.assertIn("Active job: JOB-001", current)
-        self.assertIn("Next: JOB-002", current)
-
-        self.run_cli(
-            "coverage-upsert",
-            "--target-id",
-            "surface:liquidation",
-            "--lens",
-            "full-audit",
-            "--status",
-            "ACTIVE",
-            "--investigation-id",
-            "JOB-001",
-        )
-        status = self.run_cli("mode-status")
-        self.assertEqual(status["mode"], "FULL_AUDIT")
-        self.assertEqual(status["coverage_counts"]["ACTIVE"], 1)
-        coverage = self.run_cli("coverage-list", "--status", "ACTIVE")
-        self.assertEqual(coverage["coverage"][0]["target_id"], "surface:liquidation")
-
     def test_automatic_poc_handoff_binds_claim_and_scope(self) -> None:
         self.setup_store()
         poc_skill = self.repo / ".agents" / "skills" / "poc"

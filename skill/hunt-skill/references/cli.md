@@ -51,13 +51,8 @@ python3 "$AUDITCTL" lint --repo .
 ## Research Jobs And User Context
 
 ```bash
-python3 "$AUDITCTL" mode-set --repo . --mode FULL_AUDIT
-python3 "$AUDITCTL" mode-status --repo .
 python3 "$AUDITCTL" job-upsert --repo . --id JOB-001 \
   --goal "Can partial settlement make cancellation restore too much collateral?" --status ACTIVE
-python3 "$AUDITCTL" coverage-upsert --repo . --target-id surface:liquidation \
-  --lens full-audit --status ACTIVE --investigation-id JOB-001
-python3 "$AUDITCTL" coverage-list --repo . --status NEXT
 python3 "$AUDITCTL" context-add --repo . \
   --statement "FalconX NAV updates asynchronously."
 python3 "$AUDITCTL" observation-add --repo . --job-id JOB-001 \
@@ -67,7 +62,7 @@ python3 "$AUDITCTL" probe-add --repo . --job-id JOB-001 \
   --state-before "claim=100 settled=40" --state-after "claim=?" --result "record observed state"
 ```
 
-Keep only one `ACTIVE` job. `mode-set --mode FULL_AUDIT` persists autonomous full-audit mode and refreshes `.audit/CURRENT.md`; `mode-set --mode NORMAL_HUNT` returns to stop-after-one-job behavior. Coverage means protocol-specific invariants/forbidden states were investigated, not merely that a function was read. User context starts as `UNKNOWN` unless independently verified. A probe is `INFERRED` by default; use `--executed --status VERIFIED --harness <test-or-trace>` only after actually running it.
+Keep only one `ACTIVE` job and stop for human steering before switching to an independent research direction. User context starts as `UNKNOWN` unless independently verified. A probe is `INFERRED` by default; use `--executed --status VERIFIED --harness <test-or-trace>` only after actually running it.
 
 ## Novelty And Live Evidence
 

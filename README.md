@@ -74,11 +74,9 @@ If you need optional Solodit, Alchemy, update, or scope commands, go to [docs/SE
 
 Hunt handles `auditctl`, SQLite, graph retrieval, State Probes, Solodit research, chain detection, Tenderly, `cast`, RPC selection, and PoC handoff internally.
 
-## Two Modes
+## Interactive Hunt
 
-### Interactive Hunt
-
-Interactive Hunt is the default. It is best for human + AI collaborative research:
+Hunt is a human + AI collaborative research workflow:
 
 ```text
 one ACTIVE job
@@ -88,41 +86,7 @@ one ACTIVE job
 -> stop for human steering
 ```
 
-Normal requests like `hunt`, `look for bugs`, `check this flow`, `investigate this`, or `go deeper` use Interactive Hunt. Hunt should not silently switch into full-codebase audit mode.
-
-### Full Audit
-
-Full Audit activates only when explicitly requested with language like:
-
-```text
-full audit
-audit the full codebase
-perform a complete audit
-run a full audit scan
-audit everything in scope
-perform an autonomous full audit
-```
-
-Full Audit does not use a weaker generic scanner. It repeatedly applies the same impact-driven Hunt methodology autonomously across the relevant audit surface:
-
-```text
-full-scope recon
--> build impact-driven audit agenda
--> run one ACTIVE job through hunt.md
--> persist result and coverage
--> automatically select the next highest-value unresolved job
--> continue until meaningful coverage is complete or explicitly blocked
--> final coverage + findings report
-```
-
-Mode is persisted in the project audit state so `continue` resumes correctly. In `.audit/CURRENT.md`, Full Audit should be obvious:
-
-```text
-Mode: FULL_AUDIT
-Active job: JOB-017
-Completed jobs: 16
-Next: JOB-018
-```
+Requests like `hunt`, `look for bugs`, `check this flow`, `investigate this`, or `go deeper` use this workflow. Hunt works autonomously inside the current research question, then recommends the next direction and waits for human steering before changing research direction.
 
 ## Built-In Methodology vs External Capabilities
 
@@ -155,10 +119,9 @@ Examples:
 Use $hunt-skill to map this protocol's asset and state relationships.
 Use $hunt-skill to investigate whether cancellation can desynchronize debt.
 Use $hunt-skill to continue HYP-003 and try to falsify it.
-Use $hunt-skill to run a full audit of the pinned scope.
 ```
 
-The default mode is collaborative `CHAT`; a full repository audit starts only when explicitly requested.
+The default mode is collaborative `CHAT`; concrete research proceeds as one bounded `ACTIVE` job at a time.
 
 ## How The Graph-Based Hunt Works
 
