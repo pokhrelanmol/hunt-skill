@@ -121,6 +121,8 @@ OPEN family -> SATURATED family -> OPEN only with new evidence
 
 Before activating a Job, compare it with bounded current and prior Job history. Equivalent impact + consumer + primitive/mechanism + lifecycle context continues or reopens the existing Job. A completed Job result records its coverage boundary, disposition, unresolved segments, and reopen condition so later ideation can distinguish genuinely new coverage from cosmetic variants.
 
+Use one `JOB_ATTACK_MODEL` fact per active Job to persist its lifecycle closure: capability, transient influence/action, durable output and persistence boundary, unwind, consumer, impact realization, reset/repeat route, full-cycle economics, limiting resource, and unresolved stages. Link the Job to the concrete nodes and relations that support the model. This uses the existing facts and graph records; it is not a new table or parallel workflow.
+
 A variant uses `VARIANT_OF` to point to its immediate parent. `JOB_INHERITED_COVERAGE` records what is reused; `JOB_VARIANT_DELTA` records the materially new causal edge; `JOB_VARIANT_DISTINCTNESS` explains why it can produce a result the parent could not; and `JOB_NEXT_CHECK` stores its cheapest falsification check. The family root carries `JOB_FAMILY_STATUS`. `research-packet` retrieves bounded non-variant relations from the parent lineage, while the variant adds graph records for its delta. Saturation means the currently supported graph frontiers are covered, not that the impact is impossible forever.
 
 User context lifecycle:

@@ -1138,6 +1138,7 @@ def job_view(conn, row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
             "inherited_coverage": job_fact(conn, item["id"], "JOB_INHERITED_COVERAGE"),
             "variant_distinctness": job_fact(conn, item["id"], "JOB_VARIANT_DISTINCTNESS"),
             "next_check": job_fact(conn, item["id"], "JOB_NEXT_CHECK"),
+            "attack_model": job_fact(conn, item["id"], "JOB_ATTACK_MODEL"),
         }
     )
     return item
@@ -1327,6 +1328,12 @@ def cmd_job_upsert(args) -> None:
             f"{status} job requires --result with coverage boundary, disposition, unresolved segments, "
             "and reopen condition"
         )
+    attack_model = args.attack_model or job_fact(conn, job_id, "JOB_ATTACK_MODEL")
+    if status in {"ACTIVE", "DONE"} and not attack_model.strip():
+        raise ValueError(
+            f"{status} job requires --attack-model describing capability, transient action, durable "
+            "output, unwind, consumer, impact, reset/repeat, economics, and explicit UNKNOWN stages"
+        )
     if status == "ACTIVE":
         conn.execute(
             "UPDATE investigations SET status='NEXT', ended_at=NULL "
@@ -1340,6 +1347,8 @@ def cmd_job_upsert(args) -> None:
         (job_id, args.goal, status, result, started_at, ended_at),
     )
     upsert_search(conn, "investigations", job_id)
+    if args.attack_model:
+        upsert_job_fact(conn, job_id, "JOB_ATTACK_MODEL", args.attack_model, now)
     if args.variant_of and not current_parent:
         conn.execute(
             "INSERT INTO relations(id, src_id, type, dst_id, summary, status, confidence, created_at, updated_at) "
@@ -1998,6 +2007,10 @@ def build_parser() -> argparse.ArgumentParser:
     job.add_argument("--goal", required=True)
     job.add_argument("--status", default="NEXT")
     job.add_argument("--result")
+    job.add_argument(
+        "--attack-model",
+        help="compact attacker lifecycle; required when a Job becomes ACTIVE or DONE",
+    )
     job.add_argument("--variant-of", help="parent Job whose proven coverage this variant reuses")
     job.add_argument("--variant-delta", help="materially different causal path tested by this variant")
     job.add_argument("--inherits", help="specific parent graph, evidence, and killed paths not repeated")

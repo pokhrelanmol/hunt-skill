@@ -27,6 +27,19 @@ High-value families:
 - time boundaries.
 - realistic external-state changes.
 
+## Lifecycle Sequences
+
+Choose these only when the active graph exposes the corresponding boundary:
+
+- durable output: execute -> unwind or restore the prerequisite -> consume the output;
+- replay: execute -> reset/cancel/withdraw -> execute again;
+- value dependence: influence price/value -> commit entitlement, debt, shares, payout, or transfer -> restore price/value;
+- coupled-state singularity: drive the primary balance/supply/position to zero while a dependent value remains nonzero or stale;
+- typed context: reuse the same proof/artifact while changing one material subject, domain, mode, lifecycle, source/destination, amount, or instance;
+- financing: compare the minimal sequence with owned/recycled, atomic, and cross-block capital only as far as the mechanism requires.
+
+For repeated or value-dependent paths, record per-cycle cost/proceeds/loss, the maximum plausible repetitions, and the limiting resource. A successful sequence proves mechanics only; promotion still requires attacker-created prerequisites and full-cycle impact.
+
 Common state to snapshot when relevant: total assets, total debt, total shares, user shares, user debt, health, borrow capacity, external position value, pending amount, claim amount, fees, and lifecycle flags.
 
 ## Provenance

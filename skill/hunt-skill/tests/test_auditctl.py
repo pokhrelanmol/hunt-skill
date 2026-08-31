@@ -265,6 +265,17 @@ class AuditCtlTests(unittest.TestCase):
 
     def test_jobs_context_observations_and_probes_reuse_existing_store(self) -> None:
         self.setup_store()
+        missing_model = self.run_cli(
+            "job-upsert",
+            "--id",
+            "JOB-001",
+            "--goal",
+            "Can partial settlement make cancellation restore too much collateral?",
+            "--status",
+            "ACTIVE",
+            expected=2,
+        )
+        self.assertIn("requires --attack-model", missing_model["error"])
         job = self.run_cli(
             "job-upsert",
             "--id",
@@ -273,8 +284,13 @@ class AuditCtlTests(unittest.TestCase):
             "Can partial settlement make cancellation restore too much collateral?",
             "--status",
             "ACTIVE",
+            "--attack-model",
+            "capability: public settlement; transient: partial settlement; durable: restored claim; "
+            "unwind: UNKNOWN; consumer: cancellation; impact: excess collateral; "
+            "reset/repeat: UNKNOWN; economics: UNKNOWN",
         )
         self.assertEqual(job["status"], "ACTIVE")
+        self.assertIn("durable: restored claim", job["attack_model"])
         self.run_cli(
             "job-upsert",
             "--id",
@@ -283,6 +299,10 @@ class AuditCtlTests(unittest.TestCase):
             "Can FalconX NAV lag affect rebalance?",
             "--status",
             "ACTIVE",
+            "--attack-model",
+            "capability: rebalance caller; transient: stale NAV; durable: rebalance accounting; "
+            "unwind: NAV refresh; consumer: rebalance; impact: UNKNOWN; "
+            "reset/repeat: UNKNOWN; economics: UNKNOWN",
         )
         packet = self.run_cli("research-packet", "JOB-001")
         self.assertEqual(packet["job"]["status"], "NEXT")
@@ -314,6 +334,10 @@ class AuditCtlTests(unittest.TestCase):
             "Can partial settlement make cancellation restore too much collateral?",
             "--status",
             "DONE",
+            "--attack-model",
+            "capability: public settlement; transient: partial settlement; durable: restored claim; "
+            "unwind: cancellation; consumer: collateral accounting; impact: tested; "
+            "reset/repeat: tested; economics: harmless",
             "--result",
             "Coverage: partial settlement and cancellation; disposition: rejected; "
             "unresolved: none; reopen when: settlement accounting changes.",
@@ -383,6 +407,10 @@ class AuditCtlTests(unittest.TestCase):
             "Can donation-inflated share value corrupt withdrawal accounting?",
             "--status",
             "DONE",
+            "--attack-model",
+            "capability: donation; transient: inflated value; durable: share valuation; "
+            "unwind: donation retained; consumer: withdrawal; impact: tested; "
+            "reset/repeat: tested; economics: unprofitable",
             "--result",
             "Coverage: donation producer and withdrawal consumer; disposition: rejected; "
             "unresolved: other consumers; reopen when: a new consumer or integration is found.",
@@ -453,6 +481,10 @@ class AuditCtlTests(unittest.TestCase):
             "Can the same inflated share value be consumed by collateral valuation?",
             "--status",
             "DONE",
+            "--attack-model",
+            "capability: donation; transient: inflated value; durable: share valuation; "
+            "unwind: donation retained; consumer: collateral valuation; impact: tested; "
+            "reset/repeat: tested; economics: unprofitable",
             "--result",
             "Coverage: withdrawal and collateral consumers; disposition: rejected; "
             "unresolved: none found; reopen when: new code or integration consumes share value.",
@@ -569,6 +601,9 @@ class AuditCtlTests(unittest.TestCase):
             "Can FalconX stale NAV affect rebalance?",
             "--status",
             "ACTIVE",
+            "--attack-model",
+            "capability: rebalance caller; transient: stale NAV; durable: rebalance accounting; "
+            "unwind: NAV refresh; consumer: rebalance; impact: value shift; reset/repeat: UNKNOWN; economics: UNKNOWN",
         )
         for record_id in (impact_id, function_id, linked_context):
             self.run_cli(
@@ -642,6 +677,9 @@ class AuditCtlTests(unittest.TestCase):
             "Compare split deposit accounting",
             "--status",
             "ACTIVE",
+            "--attack-model",
+            "capability: depositor; transient: split deposits; durable: shares; unwind: withdrawal; "
+            "consumer: share accounting; impact: imbalance; reset/repeat: probe; economics: UNKNOWN",
         )
         unexecuted = self.run_cli(
             "probe-add",
@@ -707,6 +745,9 @@ class AuditCtlTests(unittest.TestCase):
         self.assertIn("Trace backward from impact", hunt)
         self.assertIn("Trace forward from attacker", hunt)
         self.assertIn("economic reality vs protocol representation", hunt)
+        self.assertIn("JOB_ATTACK_MODEL", hunt)
+        self.assertIn("Price/value closure", hunt)
+        self.assertIn("attacker-lifecycle sketch", recon)
         self.assertIn("stop for human steering", hunt)
         self.assertIn("Basic Global Recon", recon)
         self.assertIn("Deep Local Recon", recon)

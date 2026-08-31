@@ -15,6 +15,7 @@ For installation, upgrades, scope setup, and troubleshooting, use [docs/SETUP.md
 - Code and pinned configuration remain the primary evidence.
 - After basic code-led RECON, the agent derives protocol-specific invariants and candidate impacts from current code, then uses applicable checklist questions and real edge cases only to challenge or expand those ideas before selecting one graph-anchored job.
 - Cross-function, cross-contract, cross-transaction, and external-protocol relationships are queryable without loading a large Markdown notebook.
+- Every active Job maintains a compact attacker-lifecycle model: capability -> transient influence -> durable output -> unwind -> consumer -> impact -> reset/repeat -> full-cycle economics. Unsolved stages remain explicit subgoals instead of premature rejection reasons.
 - Edge-case leads come from reachable intersections: Hunt checks whether distinct identities, modes, lifecycle stages, or domains collapse into the same key, resource, proof, callback, cache, or accepted condition before a sensitive consumer acts.
 - Checklist and historical patterns are used in a bounded post-RECON idea pass, then again to validate novelty and known-issue status.
 - Repository audits, similar audits, Solodit, and the EVM Hack Registry must be checked before reporting.
@@ -63,6 +64,8 @@ one ACTIVE job
 ```
 
 Before selecting that Job, Hunt reviews prior Job and impact coverage, derives lightweight candidates from current code, and chooses the direction with the strongest combination of plausible impact, reachability, local signal, composition potential, and a cheap discriminating check. The Job narrows the security question, not the causal surface: any function or integration that produces a trusted input or consumes an attacker-influenced output remains in scope for its graph.
+
+Job ideation only sketches the attack lifecycle and marks missing stages `UNKNOWN`; it does not require a solved exploit before research begins. During HUNT, that sketch becomes one `JOB_ATTACK_MODEL` fact backed by graph nodes and evidence. Price/value closure, coupled-state singularities, typed-proof mismatches, reset/replay paths, and economic-trust boundaries are activated only when the mapped code contains the corresponding signal.
 
 When the surface-level Jobs are already hunted, Hunt expands the coverage frontier. It may continue an unresolved Job, reopen one because new evidence changed an assumption, create a `VARIANT_OF` Job for a materially different producer/consumer/lifecycle/prerequisite/integration path, or rotate to a new family. Variants inherit the parent graph and killed paths, then map only the new delta. Once the supported frontiers are exhausted, the family is marked saturated and cannot receive another cosmetic variant without an explicit new-evidence reason.
 
@@ -113,6 +116,7 @@ protocol brain
 -> niche forbidden state
 -> one ACTIVE job
 -> backward trace from impact + forward trace from attacker
+-> attacker lifecycle closure with explicit UNKNOWN subgoals
 -> selected dimensions: local state, accounting, lifecycle/order, boundaries, actors, integrations, live state, historical patterns
 -> exploratory State Probe
 -> observation
@@ -141,7 +145,9 @@ That means Codex can ask sharper questions:
 
 It dynamically chooses relevant dimensions for the active impact instead of running every checklist. The graph narrows the search space; invariant reasoning decides what matters.
 
-State Probes deliberately poke underexplored reachable behavior: `1 wei`, dust, threshold +/- 1, partial operations, repeated operations, equivalent paths such as `deposit(100)` versus `deposit(40); deposit(60)`, operation reordering, different actors, time boundaries, and realistic external-state changes. Unexpected results become `OBSERVATION`, not automatically a bug.
+For example, if a consumer reads a price, rate, reserve ratio, NAV, share price, exchange rate, or cached valuation, Hunt expands that local graph into a value lifecycle: what value is consumed, where it comes from, which underlying state can move it, whether the attacker can influence it in the relevant window, what durable action is committed before the value normalizes, and whether the entire round trip is profitable. A price move without a durable consumer or viable economics is killed; a temporary price that creates a lasting entitlement is not dismissed merely because the market later recovers.
+
+State Probes deliberately poke underexplored reachable behavior: `1 wei`, dust, threshold +/- 1, partial operations, repeated operations, equivalent paths such as `deposit(100)` versus `deposit(40); deposit(60)`, operation reordering, different actors, time boundaries, and realistic external-state changes. When locally triggered, they also test sequences such as influence value -> commit durable action -> restore value, execute -> unwind -> consume output, execute -> reset -> execute again, or primary state reaches zero while coupled state remains nonzero. Unexpected results become `OBSERVATION`, not automatically a bug.
 
 Historical research is impact-driven: derive the needed attack primitive from the active job, query Solodit or historical sources, extract mechanism and prerequisites, then return to current code and verify independently. Historical matches generate attack ideas, not evidence.
 

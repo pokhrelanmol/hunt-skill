@@ -33,11 +33,14 @@ Sensitive consumer   decision or operation that makes the state matter
 Forbidden state      concrete invariant violation
 Impact               protected value, right, solvency, authority, or availability harmed
 Causal surface       likely producers, consumers, sibling/inverse lifecycle paths, and external effects
+Lifecycle sketch     capability -> transient influence -> durable output -> unwind -> consumer -> impact; mark gaps UNKNOWN
 Why now              signal strength, impact ceiling, composition potential, and expected information gain
 Next check           cheapest query, trace, or State Probe likely to reject or strengthen it
 ```
 
 Checklist questions and historical bugs are optional lenses. Apply only those with a current-code trigger, restate them in this protocol's terms, and follow [historical research](historical-research.md) when one relevant source could reveal a missing prerequisite. They may expand a candidate; they cannot define or prove it.
+
+The lifecycle sketch is deliberately incomplete at ideation time. Its purpose is to expose composition and choose the next check, not to pretend the exploit is already solved. Missing capital, liquidity, timing, cash-out, or a later consumer becomes a named subgoal. Reject the candidate only when a required stage is concretely unreachable, harmless, or economically impossible under the same conditions.
 
 ## 3. Keep The Causal Surface Open
 
@@ -91,6 +94,8 @@ Next check          the cheapest test of the new edge
 Use `VARIANT_OF` plus the stored inherited coverage, delta, distinctness, and next-check facts. Do not rebuild inherited graph coverage: `research-packet` retrieves bounded graph anchors from the parent lineage. Add and verify only the delta and its connections to the inherited path before HUNT.
 
 Mark a family `SATURATED` only after its locally promising producer, consumer, lifecycle/context, prerequisite, and integration frontiers are investigated or explicitly killed. A saturated family rejects another variant unless genuinely new evidence is recorded as the reopen reason. Without that evidence, rotate to a different impact, subsystem, invariant, or causal family.
+
+Do not mark a family saturated while a high-impact stage of its attacker lifecycle remains merely `UNKNOWN`. In particular, search all protocol and integration consumers of a durable artifact or capability before treating its lack of direct market liquidity as a dead end.
 
 ## 6. Build, Hunt, And Rotate Deliberately
 

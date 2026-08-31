@@ -32,6 +32,7 @@ python3 "${SKILL_ROOT}/scripts/auditctl.py" <command> --repo <target>
 15. Treat user-provided protocol context as useful but unverified. Store it as `USER_CONTEXT`, link likely affected records, verify before relying on it, and check whether it changes active jobs, rejected hypotheses, or parked directions.
 16. Treat edge cases as reachable intersections of otherwise valid states, identities, modes, or lifecycle stages. For each active impact, compare the full logical context a sensitive consumer assumes with the context actually bound by identifiers, resource keys, proofs, callbacks, cached records, and validation. Persist a bounded lead when distinct contexts can collide or when a producer proves/returns something weaker, narrower, or different from what its consumer assumes; do not dismiss it merely because the configuration is uncommon.
 17. When obvious Jobs are exhausted, expand the graph coverage frontier instead of renaming old questions. A Job variant must identify its parent, inherited coverage, materially new causal edge, distinct result it could produce, and new next check. Reuse the parent graph, deepen only the delta, and rotate away from a saturated family unless new evidence explicitly reopens it.
+18. Before rejecting, promoting, completing, or saturating a Job, close the attacker lifecycle in [HUNT](workflows/hunt.md): capability acquisition -> transient influence/action -> durable state or artifact -> prerequisite unwind -> sensitive consumer -> impact realization -> reset/replay -> full-cycle economics. A missing stage is an `UNKNOWN` subgoal, not automatic kill evidence. Activate price/value, coupled-state, typed-proof, restorable-guard, or economic-trust extensions only when the local code or graph triggers them.
 
 ## Mode Router
 
@@ -88,6 +89,7 @@ If intent is ambiguous, answer in `CHAT` or `HUNT` and name the next discriminat
 8. Run the context-collision and edge-case lead pass in [references/edge-case-leads.md](references/edge-case-leads.md) around the active sensitive consumer.
 9. For live-dependent claims, follow [references/live-investigation.md](references/live-investigation.md).
 10. If bounded code-led exploration stalls, run one impact-anchored historical pattern pass, convert matches into local hypotheses, and retrace them from current code.
+11. Maintain the active Job's attacker-lifecycle model and use only locally triggered extensions from [HUNT](workflows/hunt.md). Do not dismiss a path merely because one primitive is insufficient alone, an intermediate artifact lacks a market, temporary state can later be restored, or financing is not yet established.
 
 **Exit:** The idea is rejected, blocked with one missing fact, or represented as a linked hypothesis with a concrete next check.
 
@@ -120,6 +122,8 @@ If intent is ambiguous, answer in `CHAT` or `HUNT` and name the next discriminat
 - "This function is not the Job, so it is out of scope." A Job narrows the impact, not the causal surface; retain any operation that produces a trusted input or consumes an attacker-influenced output.
 - "A different function name makes this a new Job." Compare the impact, sensitive consumer, primitive/mechanism, and lifecycle context with bounded Job history; continue or reopen equivalent work.
 - "Several suspicious functions imply a bug." Show the composed attacker lifecycle and bad state.
+- "The temporary condition can be restored, so no exploit exists." Check whether it commits a durable state, entitlement, proof, price-dependent action, or transfer before restoration.
+- "The behavior is documented or uses an authorized actor." Intended mechanism and actor authorization do not by themselves prove economic safety, harmlessness, scope eligibility, or reportability.
 - "A known exploit looks similar." Similarity is inspiration, not evidence or novelty.
 - "No local lead means search every historical bug." Use one bounded fallback search anchored to this protocol's mechanism, invariant, impact, or integration.
 - "Tenderly simulation succeeded." Separate vulnerable mechanics from attacker-created prerequisites.
@@ -149,6 +153,7 @@ If intent is ambiguous, answer in `CHAT` or `HUNT` and name the next discriminat
 - Every important relation and claim has status, confidence, and evidence or an explicit unknown.
 - Impact goals combine a protocol invariant with a concrete protocol case.
 - Active jobs test whether identities, modes, lifecycle stages, and produced artifacts remain bound to the context assumed by sensitive consumers.
+- Active jobs persist a full attacker-lifecycle model; material gaps remain explicit subgoals, and completion or saturation requires closure or concrete kill evidence.
 - Job selection records why the direction deserves resources, its cheapest kill check, its causal-surface boundary, and how it differs from prior coverage.
 - Retrieval remains bounded to relevant rows and source spans.
 - Rejected paths preserve kill evidence and reopen conditions.

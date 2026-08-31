@@ -14,9 +14,22 @@ Promote a hypothesis to `CODE_VALIDATED` only when all material elements are est
 8. External assumptions: token, oracle, bridge, dependency, deployment, and configuration evidence.
 9. Strongest alternative explanation: why behavior is not safe, intentional, or harmless.
 
+The evidence must close the active `JOB_ATTACK_MODEL` or explain why a stage is genuinely unnecessary. In particular, distinguish temporary influence from the durable action it commits, and calculate attacker costs/proceeds plus victim/protocol loss across unwind, restoration, fees, repayment, and repetition. Missing capital, direct liquidity, or an external market remains a subgoal until plausible acquisition and protocol-consumer routes are tested.
+
 Keep the issue as a lead when a material item is unknown. Reject it immediately when an item is disproven.
 
 For context-collision leads, “rare” is not kill evidence. Preserve the lead when two distinct logical contexts can plausibly share an accepted representation or when a producer's result can mean something different from what a sensitive consumer assumes. Promote only after the collision/mismatch, attacker reachability, consumer acceptance, and meaningful consequence are established. Reject when code or deployment constraints make the intersection unreachable, the consumer rebinds every material context dimension, the effect is harmless, or a reliable recovery path prevents impact.
+
+## Separate The Disposition Axes
+
+Do not compress these different questions into “valid” or “invalid”:
+
+1. **Mechanism:** verified, inferred, unknown, or disproven in the pinned code/configuration.
+2. **Specification:** intended, contradicted, ambiguous, or undocumented.
+3. **Economic/impact safety:** harmless, bounded, exploitable, or still missing a lifecycle stage.
+4. **Reportability:** novel/in-scope, known/duplicate, trust-model excluded, or otherwise blocked.
+
+Documentation can establish intended behavior but cannot prove economic safety. Authorization can establish who may call but not whether that actor may allocate loss or violate user guarantees. Either may change severity or reportability without killing the mechanism or impact analysis.
 
 ## Independent Skeptic Pass
 

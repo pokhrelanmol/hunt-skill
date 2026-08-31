@@ -1,0 +1,2 @@
+# One repository-relative in-scope file or directory per line.
+# Prefer exact file lists for contests and bounties.

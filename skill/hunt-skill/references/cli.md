@@ -49,7 +49,8 @@ python3 "$AUDITCTL" lint --repo .
 
 ```bash
 python3 "$AUDITCTL" job-upsert --repo . --id JOB-001 \
-  --goal "Can partial settlement make cancellation restore too much collateral?" --status ACTIVE
+  --goal "Can partial settlement make cancellation restore too much collateral?" --status ACTIVE \
+  --attack-model "capability: public settle; transient: partial state; durable: restored claim; unwind: UNKNOWN; consumer: cancel; impact: excess collateral; reset/repeat: UNKNOWN; economics: UNKNOWN"
 python3 "$AUDITCTL" job-list --repo . --limit 30
 python3 "$AUDITCTL" job-list --repo . --linked-record impact:... --limit 20
 python3 "$AUDITCTL" job-list --repo . --family JOB-001 --limit 30
@@ -62,6 +63,7 @@ python3 "$AUDITCTL" job-upsert --repo . --id JOB-002 --status NEXT \
 python3 "$AUDITCTL" job-upsert --repo . --id JOB-001 --goal "..." --status DONE \
   --result "Coverage: ...; disposition: ...; unresolved: ...; reopen when: ..."
 python3 "$AUDITCTL" job-upsert --repo . --id JOB-002 --goal "..." --status DONE \
+  --attack-model "capability: ...; transient: ...; durable: ...; unwind: ...; consumer: ...; impact: ...; reset/repeat: ...; economics: ..." \
   --result "Coverage: all supported family frontiers; disposition: ...; unresolved: none; reopen when: new evidence" \
   --saturate-family
 python3 "$AUDITCTL" job-upsert --repo . --id JOB-003 --goal "..." --status NEXT \
@@ -78,6 +80,8 @@ python3 "$AUDITCTL" probe-add --repo . --job-id JOB-001 \
   --setup "focused unit test" --sequence "requestWithdraw -> settlePartial -> cancelWithdraw" \
   --state-before "claim=100 settled=40" --state-after "claim=?" --result "record observed state"
 ```
+
+`ACTIVE` and `DONE` require a compact `--attack-model`. Unknown stages are valid when named; the gate prevents an agent from silently skipping lifecycle composition, not from starting a promising investigation.
 
 Before creating a Job, use bounded `job-list`, `impact-list`, and graph queries to compare it with prior coverage. A new variant requires `--variant-delta`, `--inherits`, `--distinctness`, and `--next-check`; its research packet reuses parent-lineage graph anchors. `--saturate-family` is valid only for a `DONE` Job. A saturated family rejects new variants unless `--reopen-family-reason` records genuinely new evidence. `DONE` and `BLOCKED` require a result that records coverage, disposition, unresolved segments, and the reopen condition. Keep only one `ACTIVE` job and stop for human steering before switching to an independent research direction. User context starts as `UNKNOWN` unless independently verified. A probe is `INFERRED` by default; use `--executed --status VERIFIED --harness <test-or-trace>` only after actually running it.
 
