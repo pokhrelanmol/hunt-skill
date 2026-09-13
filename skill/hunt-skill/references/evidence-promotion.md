@@ -20,6 +20,8 @@ Keep the issue as a lead when a material item is unknown. Reject it immediately 
 
 For context-collision leads, “rare” is not kill evidence. Preserve the lead when two distinct logical contexts can plausibly share an accepted representation or when a producer's result can mean something different from what a sensitive consumer assumes. Promote only after the collision/mismatch, attacker reachability, consumer acceptance, and meaningful consequence are established. Reject when code or deployment constraints make the intersection unreachable, the consumer rebinds every material context dimension, the effect is harmless, or a reliable recovery path prevents impact.
 
+For precision leads, “only dust per call” is not kill evidence. Preserve the lead until the rounding direction and beneficiary, maximum realistic repetition, reset and financing cost, accumulated state drift, and every material nonlinear consumer are bounded. Promote only when the favorable discrepancy can reach meaningful extraction, insolvency, accounting corruption, or denial of service; reject when a concrete bound shows the complete lifecycle remains harmless.
+
 ## Separate The Disposition Axes
 
 Do not compress these different questions into “valid” or “invalid”:

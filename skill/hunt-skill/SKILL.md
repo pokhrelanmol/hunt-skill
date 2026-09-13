@@ -32,7 +32,7 @@ python3 "${SKILL_ROOT}/scripts/auditctl.py" <command> --repo <target>
 15. Treat user-provided protocol context as useful but unverified. Store it as `USER_CONTEXT`, link likely affected records, verify before relying on it, and check whether it changes active jobs, rejected hypotheses, or parked directions.
 16. Treat edge cases as reachable intersections of otherwise valid states, identities, modes, or lifecycle stages. For each active impact, compare the full logical context a sensitive consumer assumes with the context actually bound by identifiers, resource keys, proofs, callbacks, cached records, and validation. Persist a bounded lead when distinct contexts can collide or when a producer proves/returns something weaker, narrower, or different from what its consumer assumes; do not dismiss it merely because the configuration is uncommon.
 17. When obvious Jobs are exhausted, expand the graph coverage frontier instead of renaming old questions. A Job variant must identify its parent, inherited coverage, materially new causal edge, distinct result it could produce, and new next check. Reuse the parent graph, deepen only the delta, and rotate away from a saturated family unless new evidence explicitly reopens it.
-18. Before rejecting, promoting, completing, or saturating a Job, close the attacker lifecycle in [HUNT](workflows/hunt.md): capability acquisition -> transient influence/action -> durable state or artifact -> prerequisite unwind -> sensitive consumer -> impact realization -> reset/replay -> full-cycle economics. A missing stage is an `UNKNOWN` subgoal, not automatic kill evidence. Activate price/value, coupled-state, typed-proof, restorable-guard, or economic-trust extensions only when the local code or graph triggers them.
+18. Before rejecting, promoting, completing, or saturating a Job, close the attacker lifecycle in [HUNT](workflows/hunt.md): capability acquisition -> transient influence/action -> durable state or artifact -> prerequisite unwind -> sensitive consumer -> impact realization -> reset/replay -> full-cycle economics. A missing stage is an `UNKNOWN` subgoal, not automatic kill evidence. Activate price/value, precision/conservation, execution-context, coupled-state, typed-proof, restorable-guard, or economic-trust extensions only when the local code or graph triggers them.
 
 ## Mode Router
 
@@ -123,6 +123,7 @@ If intent is ambiguous, answer in `CHAT` or `HUNT` and name the next discriminat
 - "A different function name makes this a new Job." Compare the impact, sensitive consumer, primitive/mechanism, and lifecycle context with bounded Job history; continue or reopen equivalent work.
 - "Several suspicious functions imply a bug." Show the composed attacker lifecycle and bad state.
 - "The temporary condition can be restored, so no exploit exists." Check whether it commits a durable state, entitlement, proof, price-dependent action, or transfer before restoration.
+- "The rounding error is only dust." Identify who receives the bias, then test equivalent paths, repetition, reset cost, coupled-state drift, nonlinear boundaries, and later consumers before bounding its impact.
 - "The behavior is documented or uses an authorized actor." Intended mechanism and actor authorization do not by themselves prove economic safety, harmlessness, scope eligibility, or reportability.
 - "A known exploit looks similar." Similarity is inspiration, not evidence or novelty.
 - "No local lead means search every historical bug." Use one bounded fallback search anchored to this protocol's mechanism, invariant, impact, or integration.
@@ -154,6 +155,7 @@ If intent is ambiguous, answer in `CHAT` or `HUNT` and name the next discriminat
 - Impact goals combine a protocol invariant with a concrete protocol case.
 - Active jobs test whether identities, modes, lifecycle stages, and produced artifacts remain bound to the context assumed by sensitive consumers.
 - Active jobs persist a full attacker-lifecycle model; material gaps remain explicit subgoals, and completion or saturation requires closure or concrete kill evidence.
+- Precision-triggered jobs identify the rounding beneficiary and bound path dependence, accumulated state drift, downstream amplification, and full-cycle economics.
 - Job selection records why the direction deserves resources, its cheapest kill check, its causal-surface boundary, and how it differs from prior coverage.
 - Retrieval remains bounded to relevant rows and source spans.
 - Rejected paths preserve kill evidence and reopen conditions.

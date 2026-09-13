@@ -40,6 +40,8 @@ Next check           cheapest query, trace, or State Probe likely to reject or s
 
 Checklist questions and historical bugs are optional lenses. Apply only those with a current-code trigger, restate them in this protocol's terms, and follow [historical research](historical-research.md) when one relevant source could reveal a missing prerequisite. They may expand a candidate; they cannot define or prove it.
 
+For a precision-triggered candidate, `uses division` is not a sufficient Goal. Name the sensitive consumer or conserved quantity, the rounding direction and beneficiary, the state that retains the discrepancy, and a plausible amplifier such as splitting, repetition, reset, a low-liquidity boundary, an inverse-path mismatch, or a later nonlinear consumer. Prefer the cheapest equivalent-path or high-precision differential check before spending a full Job on it.
+
 The lifecycle sketch is deliberately incomplete at ideation time. Its purpose is to expose composition and choose the next check, not to pretend the exploit is already solved. Missing capital, liquidity, timing, cash-out, or a later consumer becomes a named subgoal. Reject the candidate only when a required stage is concretely unreachable, harmless, or economically impossible under the same conditions.
 
 ## 3. Keep The Causal Surface Open

@@ -17,7 +17,12 @@ High-value families:
 - min/threshold/precision `-1`, exact, `+1`.
 - partial operations.
 - repeated operations.
-- equivalent-path comparison, such as `deposit(100)` vs `deposit(40); deposit(60)`.
+- equivalent-path and split/merge comparison, such as `deposit(100)` vs `deposit(40); deposit(60)`.
+- economic inverse and round-trip comparison, such as mint/redeem, deposit/withdraw, exact-in/exact-out, join/exit, borrow/repay, or add/remove liquidity.
+- ideal high-precision result vs every actual scaling, division, cast, approximation, and state write; record the direction and beneficiary of each remainder.
+- cross-decimal and cross-precision-domain inputs, especially low-decimal assets and repeated rescaling.
+- nonlinear boundaries where a small numerical delta changes a tick, branch, liquidity region, health state, debt, reserve, share supply, or saved-balance condition.
+- intended proxy/delegate/callback execution vs direct or forwarded execution, comparing effective caller, storage owner, authorization, and affected account.
 - operation reordering.
 - different actors.
 - two distinct logical instances resolving to the same key, account, resource, range, identifier, or artifact.
@@ -26,6 +31,8 @@ High-value families:
 - lifecycle identity reuse: old/new, cancelled/active, pre/post-upgrade, pre/post-reset, or repeated identifiers.
 - time boundaries.
 - realistic external-state changes.
+
+When a precision probe finds any caller-favorable nonzero delta, do not stop at the single-call amount. Test whether splitting, repetition, reset, alternating inverse operations, temporary liquidity, or another consumer turns it into accumulated value or state corruption. Record per-cycle bias, state drift, reset cost, maximum realistic repetitions, limiting resources, and gas/fees. Reject only after both direct extraction and downstream amplification are bounded; distinguish harmless dust from debt, reserve/supply desynchronization, branch/tick crossing, or denial of service.
 
 ## Lifecycle Sequences
 
@@ -36,6 +43,7 @@ Choose these only when the active graph exposes the corresponding boundary:
 - value dependence: influence price/value -> commit entitlement, debt, shares, payout, or transfer -> restore price/value;
 - coupled-state singularity: drive the primary balance/supply/position to zero while a dependent value remains nonzero or stale;
 - typed context: reuse the same proof/artifact while changing one material subject, domain, mode, lifecycle, source/destination, amount, or instance;
+- precision amplification: create the favorable boundary -> execute the biased path -> reset or take the inverse path -> repeat -> invoke the nonlinear consumer;
 - financing: compare the minimal sequence with owned/recycled, atomic, and cross-block capital only as far as the mechanism requires.
 
 For repeated or value-dependent paths, record per-cycle cost/proceeds/loss, the maximum plausible repetitions, and the limiting resource. A successful sequence proves mechanics only; promotion still requires attacker-created prerequisites and full-cycle impact.

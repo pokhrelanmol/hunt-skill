@@ -49,7 +49,9 @@ RECON has two depths: basic global context for interactive hunting, and deep det
 4. Refine only material impact goals into `READY` status.
 5. Derive extension triggers from the selected graph instead of running a universal checklist:
    - price, rate, reserve, oracle, NAV, share, exchange-rate, or internal valuation edges trigger price/value closure;
-   - zero/default/sentinel, delete/reset, precision, or partially updated coupled state triggers singularity analysis;
+   - division, fixed-point or decimal scaling, explicit rounding, narrowing casts, iterative approximation, invariant/tick/liquidity math, or inverse quote/accounting paths trigger precision/conservation closure;
+   - delegatecall, generic forwarding, callbacks, direct-callable implementation/helper code, or downstream authorization based on caller identity triggers execution-context identity closure;
+   - zero/default/sentinel, delete/reset, or partially updated coupled state triggers singularity analysis;
    - signature, message, proof, receipt, callback, or cross-domain identity triggers typed-proof closure;
    - a balance, allowance, registration, liquidity, role, or position used as a gate triggers unwind/reset/replay analysis;
    - keeper, manager, relayer, oracle updater, partner, or another authorized actor able to allocate loss or value triggers an economic-trust review.
@@ -68,7 +70,7 @@ For HUNT:
 3. Confirm relevant calls, parameter bindings, return use, direct effects, effective paths, unresolved dispatch, and assumptions are represented.
 4. Confirm the graph records material logical-context -> representation/resource -> sensitive-consumer bindings, including any shared key, optional mode, default/sentinel, proof, callback, or lifecycle identity relevant to the job.
 5. Confirm graph queries can retrieve a backward path from sensitive consumer to trusted state/source and a forward path from attacker-accessible action to relevant mutation/effect, or store the missing segment as `UNKNOWN` with the next extraction step.
-6. Confirm the graph can support an initial attacker-lifecycle sketch, including the durable state/artifact and its later consumers or explicit `UNKNOWN`s. When a special extension was triggered, confirm its value source, coupled state, proof context, unwind path, or trusted actor is represented.
+6. Confirm the graph can support an initial attacker-lifecycle sketch, including the durable state/artifact and its later consumers or explicit `UNKNOWN`s. When a special extension was triggered, confirm its value source, precision domains and conserved quantities, effective caller/storage context, coupled state, proof context, unwind path, or trusted actor is represented.
 7. Let local `UNKNOWN`s block or shape the active job; do not block the whole audit unless the missing fact is globally material.
 8. Confirm that operations were excluded only with a concrete no-path or no-effect reason; "not the focal function" is not an exclusion reason.
 
