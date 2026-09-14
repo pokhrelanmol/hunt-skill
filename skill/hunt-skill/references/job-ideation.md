@@ -6,6 +6,8 @@ Use this after structural RECON when proposing a new Job. The agent derives and 
 
 Use bounded `job-list`, `impact-list`, `search`, and graph queries. Read current, completed, blocked, and parked Jobs; covered impacts; rejected hypotheses; material observations; and unresolved `UNKNOWN`s relevant to the candidate surface.
 
+Use [risk classification](risk-mapping.md) to retrieve important unresolved assumptions and compare related surfaces. Include unclassified observations and counterevidence. A classification view helps prepare candidates; it is not a required intermediate record for every Job or a second source of priorities.
+
 For each candidate with a known impact, invariant, consumer, or primitive anchor, also run `job-list --linked-record <id>` so an older equivalent Job is not hidden by the general history limit. For each match, run `job-list --family <job-id>` before deciding that its variants are uncovered.
 
 Do not create a new Job that merely renames an existing combination of:
@@ -43,6 +45,8 @@ Checklist questions and historical bugs are optional lenses. Apply only those wi
 For a precision-triggered candidate, identify a concrete numerical inconsistency or questionable rounding assumption at a sensitive consumer or conserved quantity. Record known direction, beneficiary, retained discrepancy, and possible amplification; unresolved answers are valid research questions, not prerequisites for selection. Name the cheapest equivalence or high-precision comparison that would distinguish harmless numerical error from an invariant failure. `Uses division` alone is insufficient.
 
 The lifecycle sketch is deliberately incomplete at ideation time. Its purpose is to expose composition and choose the next check, not to pretend the exploit is already solved. Missing capital, liquidity, timing, cash-out, or a later consumer becomes a named subgoal. Reject the candidate only when a required stage is concretely unreachable, harmless, or economically impossible under the same conditions.
+
+An unresolved relationship with a meaningful property and discriminating next check is enough to propose research; exact failure and impact may still be `UNKNOWN`. For a category request such as "review rounding," use that category to find relevant concerns and current-code anchors, then compare specific questions using the same shortlist. Do not auto-select a category's presumed highest-risk component.
 
 ## 3. Keep The Causal Surface Open
 

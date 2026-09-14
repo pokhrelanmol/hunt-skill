@@ -35,6 +35,7 @@ Create invariants, impacts, and Jobs only after [agent-driven job ideation](job-
 
 ```bash
 python3 "$AUDITCTL" search --repo . "cancel debt"
+python3 "$AUDITCTL" fact-list --repo . --kind RISK_CONTEXT --kind OBSERVATION --limit 20
 python3 "$AUDITCTL" neighbors --repo . function:... --types CALLS,READS,WRITES --depth 1 --limit 30
 python3 "$AUDITCTL" path --repo . role:attacker asset:USDC --max-depth 3
 python3 "$AUDITCTL" context --repo . --goal "Can cancellation desync debt?" --limit 20
@@ -44,6 +45,18 @@ python3 "$AUDITCTL" lint --repo .
 ```
 
 `research-packet` follows explicit `relations` linked to the Job and bounded graph anchors inherited from its variant lineage, then falls back to bounded FTS when neither exists.
+
+`fact-list` returns full fact records in ID order, not priority order. Combine `--kind` (repeatable), `--subject-id`, `--status`, `--query`, and exact `--id` (repeatable) filters. `--query` searches statement/kind text, not structured tags; verify the actual concern. Limits default to 20 and clamp to 1–100. If `has_more` is true, use `next_offset` with the same filters while the store is unchanged, or narrow the question. Missing category results do not establish coverage. For classification and Job references, follow [risk mapping](risk-mapping.md).
+
+For a source-anchored assumption, store one reusable record (the subject node must already represent the relevant dependency):
+
+```bash
+python3 "$AUDITCTL" fact-upsert --repo . --id fact:risk:ledger-current-state \
+  --subject-id external:ledger --kind RISK_CONTEXT --status INFERRED \
+  --statement "Concern: consumer assumes the external ledger view is current. Property: consistent accounting. Labels: integration, lifecycle. Evidence: UNKNOWN update semantics. Next check: read dependency implementation. Review boundary: unexamined."
+python3 "$AUDITCTL" fact-list --repo . --kind RISK_CONTEXT --query "integration" --limit 10
+python3 "$AUDITCTL" fact-list --repo . --id fact:risk:ledger-current-state
+```
 
 ## Research Jobs And User Context
 

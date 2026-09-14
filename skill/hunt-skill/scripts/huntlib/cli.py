@@ -588,6 +588,46 @@ def cmd_fact_upsert(args) -> None:
     emit({"ok": True, "id": args.id, "status": status})
 
 
+def cmd_fact_list(args) -> None:
+    """Read bounded facts without classifying, scoring, or changing research state."""
+    limit = min(max(args.limit, 1), 100)
+    offset = max(args.offset, 0)
+    clauses = []
+    params: list[Any] = []
+    for column, values in (("id", args.id), ("kind", args.kind)):
+        if values:
+            placeholders = ",".join("?" for _ in values)
+            clauses.append(f"f.{column} IN ({placeholders})")
+            params.extend(values)
+    if args.subject_id is not None:
+        clauses.append("f.subject_id=?")
+        params.append(args.subject_id)
+    if args.status is not None:
+        clauses.append("f.status=?")
+        params.append(require_status(args.status, EVIDENCE_STATUSES, "evidence status"))
+    if args.query is not None:
+        clauses.append(
+            "f.id IN (SELECT record_id FROM search_fts "
+            "WHERE record_type='facts' AND search_fts MATCH ?)"
+        )
+        params.append(fts_query(args.query))
+    where = " WHERE " + " AND ".join(clauses) if clauses else ""
+    conn = connect(repo_path(args))
+    try:
+        rows = as_dicts(conn.execute(
+            "SELECT f.* FROM facts AS f" + where + " ORDER BY f.id LIMIT ? OFFSET ?",
+            (*params, limit + 1, offset),
+        ))
+    finally:
+        conn.close()
+    has_more = len(rows) > limit
+    emit({
+        "count": len(rows[:limit]), "rows": rows[:limit], "has_more": has_more,
+        "next_offset": offset + limit if has_more else None,
+        "bounds": {"limit": limit, "offset": offset, "order": "id"},
+    })
+
+
 def cmd_evidence_add(args) -> None:
     repo = repo_path(args)
     conn = connect(repo)
@@ -1969,6 +2009,17 @@ def build_parser() -> argparse.ArgumentParser:
     fact.add_argument("--statement", required=True)
     add_status_confidence(fact)
     fact.set_defaults(func=cmd_fact_upsert)
+
+    facts = sub.add_parser("fact-list", help="read bounded facts and unresolved risk context")
+    add_repo(facts)
+    facts.add_argument("--id", action="append", help="exact fact ID; repeat for multiple IDs")
+    facts.add_argument("--kind", action="append", help="fact kind; repeat to include multiple kinds")
+    facts.add_argument("--subject-id")
+    facts.add_argument("--status")
+    facts.add_argument("--query", help="full-text terms in fact statements and kinds, not exact label matching")
+    facts.add_argument("--limit", type=int, default=20)
+    facts.add_argument("--offset", type=int, default=0)
+    facts.set_defaults(func=cmd_fact_list)
 
     evidence = sub.add_parser("evidence-add", help="attach source-backed evidence to a record")
     add_repo(evidence)

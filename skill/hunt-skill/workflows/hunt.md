@@ -45,7 +45,7 @@ The `JOB_ATTACK_MODEL` fact should stay compact and include: capability, transie
 
 ## Graph-Triggered Extensions
 
-Use only extensions activated by local RECON evidence:
+Choose extensions justified by RECON or newly discovered evidence. The examples below and risk-classification labels are not an exhaustive list of permitted reasoning:
 
 - **Price/value closure:** sensitive consumer -> value used -> value source -> underlying reserves/state -> attacker influence -> freshness/window/liquidity -> durable action -> market restoration -> round-trip economics. This covers spot, TWAP, oracle, reserve ratio, share price, NAV, exchange rate, cached value, and internal accounting value without assuming any one oracle pattern.
 - **Precision/conservation closure:** sensitive consumer -> ideal mathematical value or conserved quantity -> scaling/rounding/approximation steps -> rounding beneficiary -> state written -> inverse or sibling path -> repetition/reset -> nonlinear consumer -> full-cycle economics. Trigger on division, fixed-point or decimal conversion, explicit up/down rounding, narrowing casts, iterative invariant/tick/liquidity math, or paths that should be economic inverses. Compare ideal high-precision math with actual state; test directional bias, split/merge equivalence, exact-in/exact-out duality, round trips, threshold `-1/exact/+1`, low-liquidity or near-zero states, and maximum realistic repetition. Do not kill a caller-favorable dust delta until reset cost, limiting resources, accumulated state drift, and later amplification are concretely bounded; a tiny discrepancy can cross a tick, flip a branch, leave debt, desynchronize reserves/supply, freeze a consumer, or unlock a larger withdrawal.
@@ -77,6 +77,7 @@ Use only extensions activated by local RECON evidence:
     For integration-dependent questions, apply [RECON's integration semantics](recon.md#integration-semantics); compare local assumptions with the actual dependency's update and execution behavior. Use [live investigation](../references/live-investigation.md) for material deployment facts. Record unrelated observations against their own graph anchors and preserve the current Job.
 12. Conclude the `ACTIVE` job as `DONE`, `BLOCKED`, or with a linked hypothesis.
 13. Persist the result, coverage boundary, kill evidence or surviving lead, unresolved segments, and reopen condition. Compare bounded Job-family history before recommending a continuation, evidence-based reopen, graph-frontier variant, or genuinely new family.
+    If the Job references classified concerns, update only their evidence-backed [review boundaries](../references/risk-mapping.md#update-only-what-was-learned). Completion of this Job does not close every concern with the same labels.
 14. If all locally promising family frontiers and material attacker-lifecycle stages are covered or explicitly killed, mark the family saturated. Documentation, blocked direct cash-out, temporary-state restoration, an illiquid intermediate artifact, an authorized actor, or unresolved financing alone is not saturation evidence. Do not create a cosmetic variant; rotate unless new evidence supplies an explicit reopen reason. Then stop for human steering.
 
 ## Additional Pattern Search

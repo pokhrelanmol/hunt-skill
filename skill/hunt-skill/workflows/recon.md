@@ -16,7 +16,7 @@ RECON has two depths: a reusable global structural map of the agreed scope, and 
 3. Prefer compiler/build artifacts for declarations, direct calls, and provable reads/writes. Record dynamic dispatch, storage aliases, assembly, missing artifacts, and unknown external targets as extraction gaps. Do not invent resolved edges or claim that `auditctl` itself extracts compiler graphs.
 4. Store compact `RECON_COVERAGE` facts against module/function nodes: baseline, mapped declarations/edges, unresolved areas, exclusions with reasons, and next extraction check. Compare the inventory with scoped files; give every scoped module a disposition. Record zero effects separately from unexamined effects. Reuse unchanged coverage and refresh affected records only.
 5. Review bounded neighborhoods for discovery signals: shared state with multiple consumers or differently guarded writers, artifacts crossing subsystem boundaries, and writes/reads spanning different lifecycle stages. A relationship alone is not a defect. Trust differences, coupled state, and context collisions require evidence and remain `INFERRED` or `UNKNOWN` until checked. Preserve useful signals with `fact-upsert --kind OBSERVATION --subject-id <graph-anchor>` and source evidence; do not attach unrelated discoveries to the active Job or activate another Job.
-6. Pass the inventory, observations, and material gaps to [Job ideation](../references/job-ideation.md). Broad mapping does not require argument provenance, complete transitive effects, economic feasibility, or full lifecycle closure for every function. If extraction is incomplete, state the limit; block only research that depends on the missing relationships.
+6. Organize useful unresolved assumptions with [risk classification](../references/risk-mapping.md) and pass them, the inventory, observations, and material gaps to [Job ideation](../references/job-ideation.md). Reuse records; do not require every component to be classified. Broad mapping does not require argument provenance, complete transitive effects, economic feasibility, or full lifecycle closure for every function. If extraction is incomplete, state the limit; block only research that depends on the missing relationships.
 
 **Exit:** The agreed scope has a queryable inventory and explicit coverage gaps, sufficient to propose ranked Jobs without claiming a complete audit.
 
@@ -63,7 +63,7 @@ Pin dependency versions or deployed implementations and material configuration; 
    - signature, message, proof, receipt, callback, or cross-domain identity triggers typed-proof closure;
    - a balance, allowance, registration, liquidity, role, or position used as a gate triggers unwind/reset/replay analysis;
    - keeper, manager, relayer, oracle updater, partner, or another authorized actor able to allocate loss or value triggers an economic-trust review.
-6. For every triggered extension, map the extra producers, consumers, persistence boundary, reset/unwind path, and external assumptions needed to answer it. If the trigger is absent, do not spend the Job on that lens.
+6. For every relevant extension, map the extra producers, consumers, persistence boundary, reset/unwind path, and external assumptions needed to answer it. The trigger list is illustrative: other evidence-backed concerns may justify a lens without a matching label. Avoid applying irrelevant lenses merely to complete a checklist.
 
 **Exit:** The selected job has enough evidence to hunt or a bounded repair queue.
 

@@ -111,6 +111,7 @@ If intent is ambiguous, answer in `CHAT` or `HUNT` and name the next discriminat
 
 - [references/graph-schema.md](references/graph-schema.md): tables, IDs, statuses, and relationship vocabulary.
 - [references/job-ideation.md](references/job-ideation.md): agent-derived invariant, impact, and Job selection with checklists used only as bounded lenses.
+- [references/risk-mapping.md](references/risk-mapping.md): optional classification of unresolved assumptions for retrieval and candidate comparison, including unclassified concerns.
 - [references/edge-case-leads.md](references/edge-case-leads.md): codebase-agnostic context-collision, ambiguous-representation, and producer/consumer lead generation.
 - [references/evidence-promotion.md](references/evidence-promotion.md): validation, rejection, automatic proof handoff, and report gates.
 - [references/historical-research.md](references/historical-research.md): Solodit, similar audits, and hack-registry routing.

@@ -45,6 +45,8 @@ Call-site identity must include the caller plus a compiler/source identity such 
 
 The current generic records can represent deterministic RECON facts as typed nodes, relations, and evidence. Do not claim that a dedicated normalized dataflow table exists unless the installed tooling actually provides one.
 
+[Risk classification](risk-mapping.md) reuses `OBSERVATION` or `RISK_CONTEXT` facts against existing graph anchors. `JOB_RISK_CONTEXT` facts hold references from a Job to those concerns, allowing many-to-many reuse without a new table. Classification labels and review boundaries are statement text, not new evidence statuses or automatic coverage scores.
+
 ## Required RECON Records
 
 The graph must be query-useful, not ceremonial. Do not create a few placeholder nodes and proceed. For the active job, the graph should let a later agent answer:

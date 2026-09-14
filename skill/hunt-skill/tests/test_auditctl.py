@@ -786,6 +786,72 @@ class AuditCtlTests(unittest.TestCase):
         self.assertTrue(any(row["record_id"] == "fact:ledger-observation" for row in result["rows"]))
         self.assertTrue(self.run_cli("lint")["ok"])
 
+    def test_fact_list_filters_paginates_and_keeps_unclassified_concerns(self) -> None:
+        self.setup_store()
+        records = [
+            ("fact:risk:a", "RISK_CONTEXT", "external:ledger", "INFERRED", "Labels: integration, lifecycle"),
+            ("fact:risk:b", "OBSERVATION", "external:ledger", "UNKNOWN", "Unclassified accounting discrepancy"),
+            ("fact:risk:c", "RISK_CONTEXT", "storage:supply", "UNKNOWN", "Labels: precision"),
+            ("fact:priority", "JOB_PRIORITY", "JOB-SELECTED", "INFERRED", "P1 integration review"),
+        ]
+        for fact_id, kind, subject, status, statement in records:
+            self.run_cli("fact-upsert", "--id", fact_id, "--kind", kind, "--subject-id", subject,
+                         "--status", status, "--statement", statement)
+        filters = ("--kind", "RISK_CONTEXT", "--kind", "OBSERVATION")
+        first = self.run_cli("fact-list", *filters, "--limit", "2")
+        self.assertEqual([row["id"] for row in first["rows"]], ["fact:risk:a", "fact:risk:b"])
+        self.assertTrue(first["has_more"])
+        second = self.run_cli("fact-list", *filters, "--limit", "2",
+                              "--offset", str(first["next_offset"]))
+        self.assertEqual([row["id"] for row in second["rows"]], ["fact:risk:c"])
+        self.assertFalse(second["has_more"])
+        self.assertIsNone(second["next_offset"])
+        scoped = self.run_cli("fact-list", *filters, "--subject-id", "external:ledger",
+                              "--status", "UNKNOWN")
+        self.assertEqual([row["id"] for row in scoped["rows"]], ["fact:risk:b"])
+        matched = self.run_cli("fact-list", *filters, "--query", "integration")
+        self.assertEqual([row["id"] for row in matched["rows"]], ["fact:risk:a"])
+        exact = self.run_cli("fact-list", "--id", "fact:risk:b", "--id", "fact:risk:c")
+        self.assertEqual([row["statement"] for row in exact["rows"]],
+                         ["Unclassified accounting discrepancy", "Labels: precision"])
+        self.assertEqual(self.run_cli("fact-list", "--id", "missing")["count"], 0)
+        self.assertEqual(self.run_cli("fact-list", "--limit", "0")["count"], 1)
+        bounded = self.run_cli("fact-list", "--limit", "1000", "--offset", "-1")
+        self.assertEqual(bounded["bounds"], {"limit": 100, "offset": 0, "order": "id"})
+        self.run_cli("fact-list", "--status", "INVALID", expected=2)
+        self.run_cli("fact-list", "--query", "!!!", expected=2)
+        self.assertEqual(self.run_cli("job-list")["count"], 0)
+
+    def test_risk_context_reuse_preserves_evidence_and_active_job(self) -> None:
+        self.setup_store()
+        self.run_cli("job-upsert", "--id", "JOB-SELECTED", "--goal", "Review ledger consistency",
+                     "--status", "ACTIVE", "--attack-model", "consumer: ledger; gaps: UNKNOWN")
+        self.run_cli("fact-upsert", "--id", "fact:risk:ledger", "--subject-id", "external:ledger",
+                     "--kind", "RISK_CONTEXT", "--statement", "Labels: integration; review: unexamined")
+        evidence = self.run_cli("evidence-add", "--record-type", "facts", "--record-id", "fact:risk:ledger",
+                                "--source-kind", "documentation", "--note", "Fixture dependency semantics")
+        for job_id in ("JOB-SELECTED", "JOB-PENDING"):
+            if job_id == "JOB-PENDING":
+                self.run_cli("job-upsert", "--id", job_id, "--goal", "Review a different ledger consumer",
+                             "--status", "NEXT")
+            self.run_cli("fact-upsert", "--id", f"fact:{job_id}:risk", "--subject-id", job_id,
+                         "--kind", "JOB_RISK_CONTEXT", "--statement", "fact:risk:ledger")
+        self.run_cli("fact-upsert", "--id", "fact:risk:ledger", "--subject-id", "external:ledger",
+                     "--kind", "RISK_CONTEXT", "--statement",
+                     "Labels: integration; review: first consumer bounded; second consumer unresolved")
+        facts = self.run_cli("fact-list", "--kind", "RISK_CONTEXT")["rows"]
+        self.assertEqual(len(facts), 1)
+        self.assertIn("second consumer unresolved", facts[0]["statement"])
+        for job_id in ("JOB-SELECTED", "JOB-PENDING"):
+            packet = self.run_cli("research-packet", job_id)
+            self.assertTrue(any(fact["kind"] == "JOB_RISK_CONTEXT" and fact["statement"] == "fact:risk:ledger"
+                                for fact in packet["job_facts"]))
+        self.assertEqual([row["id"] for row in self.run_cli("job-list", "--status", "ACTIVE")["rows"]],
+                         ["JOB-SELECTED"])
+        with sqlite3.connect(self.repo / ".audit/graph/audit.db") as conn:
+            self.assertEqual(conn.execute("SELECT record_id FROM evidence WHERE id=?",
+                                          (evidence["evidence_id"],)).fetchone()[0], "fact:risk:ledger")
+
     def test_code_validation_gate_is_shared_across_transitions_and_lint(self) -> None:
         self.setup_store()
         self.run_cli("impact-upsert", "--id", "impact:review", "--title", "Accounting mismatch")
