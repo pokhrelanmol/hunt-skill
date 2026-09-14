@@ -11,7 +11,7 @@ Promote a hypothesis to `CODE_VALIDATED` only when all material elements are est
 5. Blocking checks: guards, reverts, sync, caps, slippage, downstream corrections.
 6. Impact path: concrete route from bad state to meaningful loss or denial of service.
 7. Feasibility: liquidity, ordering, fees, price impact, timing, profitability/cost.
-8. External assumptions: token, oracle, bridge, dependency, deployment, and configuration evidence.
+8. External assumptions: dependency implementation/specification and deployment/configuration evidence for material token, oracle, bridge, or integration behavior. Apply [RECON's integration semantics](../workflows/recon.md#integration-semantics); local interfaces and mocks alone cannot establish external guarantees.
 9. Strongest alternative explanation: why behavior is not safe, intentional, or harmless.
 
 The evidence must close the active `JOB_ATTACK_MODEL` or explain why a stage is genuinely unnecessary. In particular, distinguish temporary influence from the durable action it commits, and calculate attacker costs/proceeds plus victim/protocol loss across unwind, restoration, fees, repayment, and repetition. Missing capital, direct liquidity, or an external market remains a subgoal until plausible acquisition and protocol-consumer routes are tested.

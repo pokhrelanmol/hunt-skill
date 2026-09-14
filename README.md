@@ -1,6 +1,6 @@
 # Hunt Skill
 
-Hunt Skill is a graph-based bug hunting skill for adversarial smart-contract audits.
+Hunt Skill is a graph-based bug hunting skill and audit skill for discovering deep bugs in smart contracts and protocol integrations.
 
 It installs into a target audit repository and builds a project-local SQLite graph of contracts, functions, call sites, storage, effects, observations, hypotheses, evidence, and research jobs. Codex then uses that graph to hunt from impact backward to reachable attacker paths instead of reading the whole codebase as one giant notebook.
 
@@ -12,8 +12,8 @@ For installation, upgrades, scope setup, and troubleshooting, use [docs/SETUP.md
 
 ## What It Enforces
 
-- Code and pinned configuration remain the primary evidence.
-- After basic code-led RECON, the agent derives protocol-specific invariants and candidate impacts from current code, then uses applicable checklist questions and real edge cases only to challenge or expand those ideas before selecting one graph-anchored job.
+- Claims use pinned local/dependency code, external-system semantics, deployment state, and specifications, with intended behavior distinguished from observed execution.
+- Global Structural RECON inventories the agreed scope and records extraction gaps. The agent derives protocol-specific candidates, then presents up to three prioritized Jobs for human selection.
 - Cross-function, cross-contract, cross-transaction, and external-protocol relationships are queryable without loading a large Markdown notebook.
 - Every active Job maintains a compact attacker-lifecycle model: capability -> transient influence -> durable output -> unwind -> consumer -> impact -> reset/repeat -> full-cycle economics. Unsolved stages remain explicit subgoals instead of premature rejection reasons.
 - Edge-case leads come from reachable intersections: Hunt checks whether distinct identities, modes, lifecycle stages, or domains collapse into the same key, resource, proof, callback, cache, or accepted condition before a sensitive consumer acts.
@@ -56,14 +56,22 @@ Hunt handles `auditctl`, SQLite, graph retrieval, State Probes, Solodit research
 Hunt is a human + AI collaborative research workflow:
 
 ```text
-one ACTIVE job
+global structural map and coverage gaps
+-> up to three ranked candidate Jobs
+-> human selection
+-> one ACTIVE job
+-> deep local graph
 -> deep investigation with Hunt methodology
 -> conclusion
 -> recommend next direction
 -> stop for human steering
 ```
 
-Before selecting that Job, Hunt reviews prior Job and impact coverage, derives lightweight candidates from current code, and chooses the direction with the strongest combination of plausible impact, reachability, local signal, composition potential, and a cheap discriminating check. The Job narrows the security question, not the causal surface: any function or integration that produces a trusted input or consumes an attacker-influenced output remains in scope for its graph.
+Before selection, Hunt reviews prior coverage and ranks lightweight candidates by plausible impact, reachability, local evidence, and the value of the next check. If multiple candidates exist, it shows the top three (or both if only two exist), with Job IDs, P1/P2/P3 research priorities, rationale, material unknowns, and next checks. Priority is not finding severity. Candidates remain pending until you choose; an already selected question or explicit instruction to choose autonomously is honored without asking again. The Job narrows the security question, not the causal surface: related functions and integrations remain part of its graph.
+
+The global map records declarations, direct relationships, external systems, and known gaps once per relevant baseline. It preserves useful observations outside the active Job for later selection. Detailed arguments, effects, and semantic interpretation are expanded for the chosen question, with RECON revisited as new dependencies emerge. This is workflow guidance using the existing SQLite store; `auditctl` is not a compiler extractor and a populated graph does not certify complete coverage.
+
+Integration review follows a consumed value into its actual external implementation: what it means, whether it is cached or current, what updates it, and whether local checks happen before or after that update. For example, a debt getter may return stored debt while repayment first accrues interest; comparing those values without matching their accounting time can misattribute the change. Dependency versions and material configuration must support the conclusion, even when the external protocol itself is outside reporting scope.
 
 Job ideation only sketches the attack lifecycle and marks missing stages `UNKNOWN`; it does not require a solved exploit before research begins. During HUNT, that sketch becomes one `JOB_ATTACK_MODEL` fact backed by graph nodes and evidence. Price/value closure, precision/conservation closure, execution-context identity closure, coupled-state singularities, typed-proof mismatches, reset/replay paths, and economic-trust boundaries are activated only when the mapped code contains the corresponding signal.
 
@@ -84,7 +92,7 @@ Hunt does not depend on a pile of reasoning agents. The core methodology is buil
 - State Probes;
 - falsification and skeptical validation.
 
-External tools are capability providers. Use them only when the current ACTIVE JOB needs evidence that local code, graph context, probes, and reasoning cannot provide efficiently:
+External tools are capability providers. Use them when the current RECON, candidate, or selected Job needs evidence that local artifacts and reasoning cannot establish:
 
 - historical finding retrieval with Solodit or similar sources;
 - live-chain reads with `cast`;
@@ -111,9 +119,10 @@ The default interaction is collaborative `CHAT`; concrete research proceeds as o
 Hunt keeps one active research question at a time:
 
 ```text
-protocol brain
+global structural map
 -> protocol-specific invariant
 -> niche forbidden state
+-> ranked candidate shortlist and human selection
 -> one ACTIVE job
 -> backward trace from impact + forward trace from attacker
 -> attacker lifecycle closure with explicit UNKNOWN subgoals
@@ -188,7 +197,7 @@ reward accounting
 withdrawable amount
 ```
 
-Then it creates an ACTIVE job around a concrete forbidden state:
+It proposes a Job around a concrete forbidden state and activates it after selection:
 
 ```text
 Can an attacker make later depositors mint too few shares, or withdraw more value than their fair share, by changing assets without matching share/accounting updates?

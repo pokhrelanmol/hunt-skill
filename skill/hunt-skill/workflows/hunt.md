@@ -4,7 +4,7 @@ HUNT is one meaningful `ACTIVE` job attacking one protocol-specific impact, not 
 
 ## Entry Gate
 
-Require broad protocol context from RECON: scope, architecture, actors, assets, value flow, integrations, lifecycles, and important invariants. Do not require perfect deterministic coverage for every state-changing entrypoint before the first hunt.
+Require the user's selected Job or explicit delegated selection, plus the structural inventory and coverage gaps from RECON. Do not require perfect deterministic coverage for every state-changing entrypoint before the first hunt.
 
 For the `ACTIVE` Job, require deep graph/context coverage for its causal surface, not only the focal function. A variant may inherit still-valid parent coverage, but its stated delta and the edges connecting it to the inherited path must be detailed. If producer, consumer, lifecycle, call/effect, or argument coverage is stale or missing, deepen RECON for the missing surface.
 
@@ -74,6 +74,7 @@ Use only extensions activated by local RECON evidence:
 9. Form a hypothesis only when a concrete chain connects attacker -> reachable action -> local/external state -> durable bad representation/artifact where relevant -> sensitive consumer -> forbidden state -> impact. Keep any material lifecycle gap explicit.
 10. Preserve a `LEAD` when a context collision or producer/consumer mismatch reaches a sensitive consumer but a material prerequisite or consequence remains unknown. Kill it only with concrete separation, rebinding, harmlessness, or recovery evidence.
 11. Falsify serious hypotheses across all material dimensions: reachability, permissions, ordering, sync/correction, persistence after unwind/restoration, external reachability, live config, timing, liquidity/capital, reset/repetition, full-cycle economics, actual impact, victim requirements, intended behavior, and known/duplicate issues.
+    For integration-dependent questions, apply [RECON's integration semantics](recon.md#integration-semantics); compare local assumptions with the actual dependency's update and execution behavior. Use [live investigation](../references/live-investigation.md) for material deployment facts. Record unrelated observations against their own graph anchors and preserve the current Job.
 12. Conclude the `ACTIVE` job as `DONE`, `BLOCKED`, or with a linked hypothesis.
 13. Persist the result, coverage boundary, kill evidence or surviving lead, unresolved segments, and reopen condition. Compare bounded Job-family history before recommending a continuation, evidence-based reopen, graph-frontier variant, or genuinely new family.
 14. If all locally promising family frontiers and material attacker-lifecycle stages are covered or explicitly killed, mark the family saturated. Documentation, blocked direct cash-out, temporary-state restoration, an illiquid intermediate artifact, an authorized actor, or unresolved financing alone is not saturation evidence. Do not create a cosmetic variant; rotate unless new evidence supplies an explicit reopen reason. Then stop for human steering.

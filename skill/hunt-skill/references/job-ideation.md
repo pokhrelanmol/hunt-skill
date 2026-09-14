@@ -1,6 +1,6 @@
 # Agent-Driven Job Ideation
 
-Use this after basic RECON whenever selecting a new `ACTIVE` Job. This is the resource-allocation gate: the agent derives the direction from the current protocol, compares it with prior coverage, and chooses one question worth deeper graph construction and HUNT.
+Use this after structural RECON when proposing a new Job. The agent derives and ranks protocol-specific questions; the user selects the research direction. Detailed mapping and investigation follow selection.
 
 ## 1. Review What Is Already Known
 
@@ -21,7 +21,7 @@ Continue or reopen the existing Job when new evidence changes it. The same impac
 
 ## 2. Derive Lightweight Candidates
 
-Start from observed code, documentation, and the coarse graph—not a predefined catalog. A candidate should be compact but answer:
+Start from observed local/dependency code, documentation, integration semantics, and the structural graph—not a predefined catalog. Keep each candidate compact and address these fields, using explicit `UNKNOWN`s for unsettled parts:
 
 ```text
 Goal                 the falsifiable security question
@@ -40,23 +40,15 @@ Next check           cheapest query, trace, or State Probe likely to reject or s
 
 Checklist questions and historical bugs are optional lenses. Apply only those with a current-code trigger, restate them in this protocol's terms, and follow [historical research](historical-research.md) when one relevant source could reveal a missing prerequisite. They may expand a candidate; they cannot define or prove it.
 
-For a precision-triggered candidate, `uses division` is not a sufficient Goal. Name the sensitive consumer or conserved quantity, the rounding direction and beneficiary, the state that retains the discrepancy, and a plausible amplifier such as splitting, repetition, reset, a low-liquidity boundary, an inverse-path mismatch, or a later nonlinear consumer. Prefer the cheapest equivalent-path or high-precision differential check before spending a full Job on it.
+For a precision-triggered candidate, identify a concrete numerical inconsistency or questionable rounding assumption at a sensitive consumer or conserved quantity. Record known direction, beneficiary, retained discrepancy, and possible amplification; unresolved answers are valid research questions, not prerequisites for selection. Name the cheapest equivalence or high-precision comparison that would distinguish harmless numerical error from an invariant failure. `Uses division` alone is insufficient.
 
 The lifecycle sketch is deliberately incomplete at ideation time. Its purpose is to expose composition and choose the next check, not to pretend the exploit is already solved. Missing capital, liquidity, timing, cash-out, or a later consumer becomes a named subgoal. Reject the candidate only when a required stage is concretely unreachable, harmless, or economically impossible under the same conditions.
 
 ## 3. Keep The Causal Surface Open
 
-A Job narrows the invariant and impact, not the source analysis to one function. Before HUNT, close over the selected question:
+A Job narrows the question, not the source analysis to one function. Sketch likely producers, consumers, sibling paths, and external dependencies; retain gaps as `UNKNOWN`. An operation remains relevant when it produces a consumer input or consumes an affected output. After selection, [Deep Local RECON](../workflows/recon.md#phase-3-deep-local-recon) owns detailed expansion; do not perform full closure for every candidate during ideation.
 
-- **Consumer closure:** state, balances, rates, rights, proofs, roles, configuration, and external facts trusted by the sensitive consumer.
-- **Producer closure:** local and external paths that write, derive, transfer, mint, burn, invalidate, or economically change those inputs.
-- **Attacker closure:** production-reachable entrypoints that can reach or shape any producer.
-- **Output closure:** later protocol or integration consumers of every attacker-influenced state, asset, right, proof, authority, or capability.
-- **Lifecycle closure:** sibling, inverse, partial, repeated, cancelled, delayed, restored, callback, reset, and recovery paths material to the question.
-
-An operation that is not selected as its own Job remains in the active causal surface when it can produce a consumer input or consume a primitive output. Mark incomplete closure `UNKNOWN`; do not silently exclude the path.
-
-## 4. Select One Job
+## 4. Rank And Present For Selection
 
 Compare candidates by judgment, not a rigid numeric score:
 
@@ -67,9 +59,17 @@ Compare candidates by judgment, not a rigid numeric score:
 5. cost and decisiveness of the next check;
 6. useful coverage not already provided by prior Jobs.
 
-Promote only the strongest candidate to `ACTIVE`. Preserve other locally anchored candidates as `NEXT` or `PARKED`; discard external prompts with no local trigger. Job creation is an agent judgment—no checklist match or command creates it automatically.
+Persist credible candidates as `NEXT` or `PARKED`, linked to initial graph anchors and proposed invariant/impact. Present the top three when three or more exist, both when two exist, and the sole candidate when only one exists. Do not manufacture candidates to fill the table. Use this compact format:
 
-Persist the invariant, impact, and Job, then link the Job to its impact/invariant and initial graph anchors. The Job goal must be self-contained enough that another session can understand the question, reachability basis, causal surface, why it deserved resources, and next check without replaying the conversation.
+| Research priority | Job ID and specific question | Why this ranks here / possible impact | Evidence or material UNKNOWN | Next check |
+|---|---|---|---|---|
+| P1 — recommended | ... | ... | ... | ... |
+
+Use P2/P3 for the remaining displayed choices. Priority means relative research value, not finding severity or proof of a bug. State material scope limits and explain each candidate's difference from prior coverage. Persist the rank and rationale in a `JOB_PRIORITY` fact against the Job using the existing facts store; revise it when evidence changes. `job-list` recency order is not priority order.
+
+End the proposal with a concise request for the user's choice. Do not activate or investigate a candidate while waiting. If the user already selected the precise question or explicitly delegated selection, follow that authority and identify the chosen Job without asking again. A generic request to audit, hunt, go deeper, or create Jobs is not by itself a choice among new independent candidates. Continuing the already selected Job does not require reselection.
+
+Activate only the selected Job; preserve other candidates and any existing active question until a switch is chosen. The Job goal must let another session understand the question, initial causal surface, rationale, unresolved assumptions, and next check. An early `DRAFT` impact may remain incomplete; promotion must satisfy its own evidence requirements.
 
 ## 5. Expand The Coverage Frontier
 
@@ -101,13 +101,8 @@ Do not mark a family saturated while a high-impact stage of its attacker lifecyc
 
 ## 6. Build, Hunt, And Rotate Deliberately
 
-After selection, build the detailed graph packet for the whole causal surface. HUNT begins only when graph queries support both:
-
-```text
-sensitive consumer -> trusted inputs -> producers -> attacker path
-attacker primitive -> changed representation/capability -> later consumers -> impact
-```
+After selection, follow [RECON's graph gate](../workflows/recon.md#phase-6-gates), then [HUNT](../workflows/hunt.md). Return to RECON when reasoning exposes missing relationships; ideation does not certify graph completeness.
 
 When the Job ends, record its result, coverage boundary, kill evidence or surviving lead, unresolved segments, and reopen condition. Mark an impact `COVERED` only when its materially promising consumers and primitive paths were investigated or explicitly rejected.
 
-Before recommending the next direction, compare Job and family history again. Choose the strongest locally supported continuation, reopen, variant, or new family; otherwise mark the exhausted family saturated and rotate. Explain the exact coverage delta, then stop for human steering before activating it.
+Before proposing the next direction, compare Job and family history again and use the ranked shortlist above for supported continuations, reopens, variants, or new families. Explain each coverage delta, then stop for human steering before activating an independent direction. If no candidate is supported, report that limit instead of inventing another Job.

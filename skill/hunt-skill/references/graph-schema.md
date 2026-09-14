@@ -59,7 +59,7 @@ The graph must be query-useful, not ceremonial. Do not create a few placeholder 
 - which material context dimensions the producer binds and which dimensions the consumer independently validates;
 - which exact source/evidence anchors support or limit each edge.
 
-For every scoped function, retain compact queryable facts for:
+Global inventory and extraction-gap requirements belong to [Global Structural RECON](../workflows/recon.md#phase-2-global-structural-recon). Store its `RECON_COVERAGE` facts and unselected `OBSERVATION`s against module/function/state/dependency nodes, without creating a placeholder Job. For each function in the chosen Job's causal surface, retain compact queryable facts for:
 
 - canonical parameters: position, name, type, storage location, source span, and compiler node ID;
 - unique call sites: caller, declared callee, callee expression, dispatch, AST ID, byte offset, condition, status, confidence, and baseline;
@@ -120,6 +120,8 @@ OPEN family -> SATURATED family -> OPEN only with new evidence
 ```
 
 Before activating a Job, compare it with bounded current and prior Job history. Equivalent impact + consumer + primitive/mechanism + lifecycle context continues or reopens the existing Job. A completed Job result records its coverage boundary, disposition, unresolved segments, and reopen condition so later ideation can distinguish genuinely new coverage from cosmetic variants.
+
+Candidate ranking and selection follow [Job ideation](job-ideation.md#4-rank-and-present-for-selection). `JOB_PRIORITY` stores research priority and rationale as an ordinary fact with the Job as `subject_id`; it is not severity. Candidates stay `NEXT`/`PARKED` until selected. `job-list` and `research-packet` expose this as `research_priority`; they do not compute rankings.
 
 Use one `JOB_ATTACK_MODEL` fact per active Job to persist its lifecycle closure: capability, transient influence/action, durable output and persistence boundary, unwind, consumer, impact realization, reset/repeat route, full-cycle economics, limiting resource, and unresolved stages. Link the Job to the concrete nodes and relations that support the model. This uses the existing facts and graph records; it is not a new table or parallel workflow.
 

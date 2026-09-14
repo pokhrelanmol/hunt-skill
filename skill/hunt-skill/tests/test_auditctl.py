@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -736,21 +737,98 @@ class AuditCtlTests(unittest.TestCase):
         self.assertIn("STATE_PROBE", kinds)
         self.assertIn("OBSERVATION", kinds)
 
-    def test_hunt_and_recon_docs_preserve_user_boundary_and_local_recon(self) -> None:
-        hunt = (SKILL_ROOT / "workflows" / "hunt.md").read_text(encoding="utf-8")
-        recon = (SKILL_ROOT / "workflows" / "recon.md").read_text(encoding="utf-8")
-        self.assertIn("one meaningful `ACTIVE` job", hunt)
-        self.assertIn("Forbidden state", hunt)
-        self.assertIn("Sensitive consumer", hunt)
-        self.assertIn("Trace backward from impact", hunt)
-        self.assertIn("Trace forward from attacker", hunt)
-        self.assertIn("economic reality vs protocol representation", hunt)
-        self.assertIn("JOB_ATTACK_MODEL", hunt)
-        self.assertIn("Price/value closure", hunt)
-        self.assertIn("attacker-lifecycle sketch", recon)
-        self.assertIn("stop for human steering", hunt)
-        self.assertIn("Basic Global Recon", recon)
-        self.assertIn("Deep Local Recon", recon)
+    def test_pending_candidates_preserve_focus_and_retrieve_priority(self) -> None:
+        self.setup_store()
+        self.run_cli(
+            "job-upsert", "--id", "JOB-CURRENT", "--goal", "Review withdrawal accounting",
+            "--status", "ACTIVE", "--attack-model", "consumer: withdrawal; gaps: UNKNOWN",
+        )
+        for index in range(1, 4):
+            job_id = f"JOB-CANDIDATE-{index}"
+            self.run_cli(
+                "job-upsert", "--id", job_id, "--goal", f"Review accounting boundary {index}",
+                "--status", "NEXT", "--next-check", "Compare the relevant accounting views",
+            )
+            self.run_cli(
+                "fact-upsert", "--id", f"fact:{job_id}:priority", "--subject-id", job_id,
+                "--kind", "JOB_PRIORITY", "--statement", f"P{index}; rationale: fixture evidence",
+            )
+        jobs = {row["id"]: row for row in self.run_cli("job-list")["rows"]}
+        self.assertEqual([job_id for job_id, row in jobs.items() if row["status"] == "ACTIVE"],
+                         ["JOB-CURRENT"])
+        for index in range(1, 4):
+            row = jobs[f"JOB-CANDIDATE-{index}"]
+            self.assertEqual(row["status"], "NEXT")
+            self.assertEqual(row["attack_model"], "")
+            self.assertEqual(row["research_priority"], f"P{index}; rationale: fixture evidence")
+        self.run_cli(
+            "fact-upsert", "--id", "fact:JOB-CANDIDATE-2:priority",
+            "--subject-id", "JOB-CANDIDATE-2", "--kind", "JOB_PRIORITY",
+            "--statement", "P1; rationale: new dependency evidence",
+        )
+        packet = self.run_cli("research-packet", "JOB-CANDIDATE-2")
+        self.assertEqual(packet["job"]["research_priority"],
+                         "P1; rationale: new dependency evidence")
+        self.assertEqual(len([fact for fact in packet["job_facts"]
+                              if fact["kind"] == "JOB_PRIORITY"]), 1)
+
+    def test_global_observation_survives_without_placeholder_job(self) -> None:
+        self.setup_store()
+        self.run_cli("node-upsert", "--id", "external:ledger", "--kind", "external",
+                     "--name", "External ledger")
+        self.run_cli(
+            "fact-upsert", "--id", "fact:ledger-observation", "--subject-id", "external:ledger",
+            "--kind", "OBSERVATION", "--statement", "LedgerSnapshot returns stored accounting",
+            "--status", "INFERRED",
+        )
+        self.assertEqual(self.run_cli("job-list")["count"], 0)
+        result = self.run_cli("search", "LedgerSnapshot")
+        self.assertTrue(any(row["record_id"] == "fact:ledger-observation" for row in result["rows"]))
+        self.assertTrue(self.run_cli("lint")["ok"])
+
+    def test_code_validation_gate_is_shared_across_transitions_and_lint(self) -> None:
+        self.setup_store()
+        self.run_cli("impact-upsert", "--id", "impact:review", "--title", "Accounting mismatch")
+        self.run_cli(
+            "hypothesis-upsert", "--id", "HYP-REVIEW", "--title", "Review claim",
+            "--claim", "Accounting views disagree", "--attacker-capability", "fixture actor",
+            "--impact-goal-id", "impact:review", "--root-cause-key", "fixture-accounting",
+            "--next-check", "Review evidence",
+        )
+        transitions = [
+            ("hypothesis-upsert", "--id", "HYP-REVIEW", "--status", "CODE_VALIDATED"),
+            ("hypothesis-status", "HYP-REVIEW", "--status", "CODE_VALIDATED"),
+        ]
+        for transition in transitions:
+            result = self.run_cli(*transition, expected=2)
+            self.assertIn("READY or COVERED", result["error"])
+        with sqlite3.connect(self.repo / ".audit/graph/audit.db") as conn:
+            self.assertEqual(conn.execute("SELECT status FROM hypotheses WHERE id='HYP-REVIEW'")
+                             .fetchone()[0], "LEAD")
+        self.run_cli(
+            "invariant-upsert", "--id", "invariant:review", "--title", "Consistent accounting",
+            "--statement", "Both views reflect the same effective accounting state",
+        )
+        self.run_cli(
+            "impact-upsert", "--id", "impact:review", "--status", "READY",
+            "--invariant-id", "invariant:review", "--protocol-case", "Fixture ledger views",
+            "--decision-point", "Accounting read", "--bad-state", "Views disagree",
+            "--attacker-goal", "Incorrect accounting", "--candidate-primitive", "external:ledger",
+        )
+        self.run_cli("hypothesis-upsert", "--id", "HYP-REVIEW", "--next-check", "   ")
+        for transition in transitions:
+            result = self.run_cli(*transition, expected=2)
+            self.assertIn("missing fields: next_check", result["error"])
+        self.run_cli("hypothesis-upsert", "--id", "HYP-REVIEW", "--next-check", "Review evidence")
+        for transition in transitions:
+            result = self.run_cli(*transition)
+            status_key = "status" if transition[0] == "hypothesis-upsert" else "to"
+            self.assertEqual(result[status_key], "CODE_VALIDATED")
+        self.assertTrue(self.run_cli("lint")["ok"])
+        self.run_cli("impact-upsert", "--id", "impact:review", "--status", "DRAFT")
+        lint = self.run_cli("lint", expected=5)
+        issue = next(item for item in lint["issues"] if item["id"] == "HYP-REVIEW")
+        self.assertIn("READY or COVERED", " ".join(issue["reasons"]))
 
     def test_novelty_requires_all_sources(self) -> None:
         self.setup_store()

@@ -1,6 +1,6 @@
 ---
 name: hunt-skill
-description: Graph-backed adversarial smart-contract audit partner for protocol reconnaissance, impact-first bug hunting, cross-function exploit composition, hypothesis validation, novelty screening against prior audits and exploit databases, Tenderly-first on-chain investigation, and gated proof/reporting. Use when Codex is asked to understand, map, hunt, validate, continue, or audit a smart-contract protocol while preserving compact repository-local audit memory.
+description: Audit skill and graph-based bug hunting skill to discover deep bugs in smart contracts and protocol integrations. Use for smart-contract audits, security reviews, deep analysis, bug hunting, invariant and accounting review, or investigating cross-function and external-system behavior. Preserves research jobs, source evidence, and audit context in a project-local SQLite graph.
 ---
 
 # Adversarial Audit Hunt
@@ -15,10 +15,10 @@ python3 "${SKILL_ROOT}/scripts/auditctl.py" <command> --repo <target>
 
 ## Non-Negotiable Rules
 
-1. Keep code as the primary source of truth. Label consequential claims `VERIFIED`, `INFERRED`, or `UNKNOWN`.
+1. Ground claims in the relevant system's evidence: pinned local and dependency code, external contract semantics, deployment/configuration, observed state, and authoritative specifications. Local source alone cannot establish integration correctness; distinguish intended behavior from observed execution and resolve material conflicts. Label consequential claims `VERIFIED`, `INFERRED`, or `UNKNOWN`.
 2. Default to `CHAT` or one bounded `HUNT` job. Work autonomously inside the current research question, then ask for human steering before changing direction.
 3. Hunt both directions: start from reachable primitives and ask what they can break; start from meaningful impacts and search backward for reachable flows.
-4. After basic RECON, use [agent-driven job ideation](references/job-ideation.md) to compare prior coverage, derive several lightweight protocol-specific candidates, and select one Job with a concrete reachability basis, resource rationale, and discriminating next check. Checklist questions and historical edge cases may expand local reasoning; they cannot define or create the Job.
+4. After structural RECON, use [agent-driven job ideation](references/job-ideation.md) to compare prior coverage and present up to three locally grounded Jobs with research priorities, reasons, and next checks. Keep candidates pending for the user's selection unless the user already chose the question or explicitly delegated selection. Checklist questions and historical edge cases may inform candidates; they cannot create Jobs automatically.
 5. Build a detailed, useful SQLite graph before hunting. The graph is not a formality: close over every material producer of the sensitive consumer's inputs and every later consumer of attacker-influenced outputs, including sibling lifecycle and external effects. If the graph cannot answer the active Job's bidirectional reachability/effect questions, stop and deepen RECON instead of hunting from source-reading memory.
 6. Prefer compiler AST/build artifacts and deterministic local tools for mechanical relationships. Never ask a model to reconstruct a transitive call graph when compiler-resolved evidence is available.
 7. HUNT needs sufficient broad RECON plus deep deterministic graph/context coverage for the active job's relevant surface. Missing or unresolved information must be represented explicitly as `UNKNOWN`, never silently omitted.
@@ -28,7 +28,7 @@ python3 "${SKILL_ROOT}/scripts/auditctl.py" <command> --repo <target>
 11. Use the installed Tenderly skill first for simulations, traces, forks, and state overrides. Use `cast` for narrow read-only facts. Pin chain, block, address, code hash when available, and observation time.
 12. Once a hypothesis is `CODE_VALIDATED`, PoC work is part of the same research question: run `poc-handoff`, read the configured dedicated PoC skill's `SKILL.md`, and attempt the strongest practical proof. Ask the user only when the PoC environment or material data is missing.
 13. Do not modify production contracts during setup, reconnaissance, or indexing.
-14. The same research question means autonomous work; a new research direction requires explaining the recommendation and asking the user before switching.
+14. Preserve observations outside the current Job against their graph anchors for later selection; discovering a different concern does not change the active question.
 15. Treat user-provided protocol context as useful but unverified. Store it as `USER_CONTEXT`, link likely affected records, verify before relying on it, and check whether it changes active jobs, rejected hypotheses, or parked directions.
 16. Treat edge cases as reachable intersections of otherwise valid states, identities, modes, or lifecycle stages. For each active impact, compare the full logical context a sensitive consumer assumes with the context actually bound by identifiers, resource keys, proofs, callbacks, cached records, and validation. Persist a bounded lead when distinct contexts can collide or when a producer proves/returns something weaker, narrower, or different from what its consumer assumes; do not dismiss it merely because the configuration is uncommon.
 17. When obvious Jobs are exhausted, expand the graph coverage frontier instead of renaming old questions. A Job variant must identify its parent, inherited coverage, materially new causal edge, distinct result it could produce, and new next check. Reuse the parent graph, deepen only the delta, and rotate away from a saturated family unless new evidence explicitly reopens it.
@@ -58,7 +58,7 @@ If intent is ambiguous, answer in `CHAT` or `HUNT` and name the next discriminat
 4. Before relying on stored graph/evidence, run `stale` once when source freshness is unknown or the scoped source may have changed. Refresh affected facts instead of repeating every diagnostic.
 5. If this is a new audit, use RECON, snapshot, and graph mechanisms to establish architecture, actors, assets, value flow, lifecycles, integrations, intended behavior, and material invariants before hunting.
 6. Ask the user only for material missing context that docs/code cannot establish; record non-material unknowns as `UNKNOWN` and continue.
-7. Before HUNT, run [RECON](workflows/recon.md), compare bounded Job/impact/family history, use [agent-driven job ideation](references/job-ideation.md) to select one locally derived Job or materially distinct variant, then deepen graph coverage across its causal surface or delta.
+7. Follow [RECON](workflows/recon.md) and [Job ideation](references/job-ideation.md) to prepare the ranked shortlist. Deepen the chosen Job's graph after selection; reuse fresh global and inherited records.
 
 **Exit:** The active source snapshot and research question are explicit.
 
@@ -75,37 +75,11 @@ If intent is ambiguous, answer in `CHAT` or `HUNT` and name the next discriminat
 
 **Exit:** The current question has a compact evidence bundle, unresolved assumptions, and exact code anchors.
 
-### Phase 3: Investigate In Layers
+### Phase 3: Execute The Selected Workflow
 
-**Entry:** At least one local code anchor or impact goal exists.
+[RECON](workflows/recon.md) owns discovery and graph construction; [Job ideation](references/job-ideation.md) owns candidate comparison and human selection; [HUNT](workflows/hunt.md) owns investigation. Use [VALIDATE](workflows/validate.md) with the canonical [evidence gates](references/evidence-promotion.md), then [PROVE](workflows/prove.md) for proof mechanics. Return to RECON whenever investigation exposes a missing relationship; a populated graph is not proof of semantic completeness.
 
-1. Establish the protected value/right and relevant invariant.
-2. Present the highest-value niche invariant or research question to the user before starting a new direction.
-3. Trace entrypoint -> guards -> reads -> calculations -> external effects -> writes -> later consumers.
-4. Run focused exploratory state probes when tests/forks/harnesses are available; inspect meaningful before/after state, not only revert status.
-5. Store surprising-but-not-yet-buggy results as `OBSERVATION` or `STATE_PROBE`, linked to the current job.
-6. Alternate first-principles and state-consistency lenses.
-7. Inspect cross-function, cross-contract, cross-transaction, and external-protocol composition.
-8. Run the context-collision and edge-case lead pass in [references/edge-case-leads.md](references/edge-case-leads.md) around the active sensitive consumer.
-9. For live-dependent claims, follow [references/live-investigation.md](references/live-investigation.md).
-10. If bounded code-led exploration stalls, run one impact-anchored historical pattern pass, convert matches into local hypotheses, and retrace them from current code.
-11. Maintain the active Job's attacker-lifecycle model and use only locally triggered extensions from [HUNT](workflows/hunt.md). Do not dismiss a path merely because one primitive is insufficient alone, an intermediate artifact lacks a market, temporary state can later be restored, or financing is not yet established.
-
-**Exit:** The idea is rejected, blocked with one missing fact, or represented as a linked hypothesis with a concrete next check.
-
-### Phase 4: Promote Or Kill
-
-**Entry:** A concrete hypothesis exists.
-
-1. Apply [references/evidence-promotion.md](references/evidence-promotion.md).
-2. Record exact counterevidence and reopen conditions for rejected paths.
-3. When new context arrives, store/classify/link it and check whether it affects the active job, contradicts an assumption, revives a rejected hypothesis, revives a parked job, or kills the active direction. Recommend reopening; do not silently reopen.
-4. Run historical novelty checks before reportability.
-5. At `CODE_VALIDATED`, run `poc-handoff`; if the configured PoC skill or environment is missing, ask the user for that missing item.
-
-**Exit:** The hypothesis is rejected, remains a bounded lead, moves to proof, is PoC-blocked with one missing item, or reaches `POC_VALIDATED`.
-
-### Phase 5: Checkpoint
+### Phase 4: Checkpoint
 
 **Entry:** The investigation reached a stable disposition.
 
@@ -137,7 +111,6 @@ If intent is ambiguous, answer in `CHAT` or `HUNT` and name the next discriminat
 
 - [references/graph-schema.md](references/graph-schema.md): tables, IDs, statuses, and relationship vocabulary.
 - [references/job-ideation.md](references/job-ideation.md): agent-derived invariant, impact, and Job selection with checklists used only as bounded lenses.
-- [references/layered-hunting.md](references/layered-hunting.md): forward/backward composition method.
 - [references/edge-case-leads.md](references/edge-case-leads.md): codebase-agnostic context-collision, ambiguous-representation, and producer/consumer lead generation.
 - [references/evidence-promotion.md](references/evidence-promotion.md): validation, rejection, automatic proof handoff, and report gates.
 - [references/historical-research.md](references/historical-research.md): Solodit, similar audits, and hack-registry routing.
@@ -149,14 +122,14 @@ If intent is ambiguous, answer in `CHAT` or `HUNT` and name the next discriminat
 ## Success Criteria
 
 - Scope and source freshness are pinned.
-- Basic global RECON is sufficient before HUNT; deep deterministic coverage is required for the active job's relevant surface.
+- Global structural coverage and its gaps are explicit; deep deterministic coverage is required for the chosen Job's relevant surface.
 - Runtime dispatch candidates are separated from live-confirmed implementations, and supporting test code does not contaminate production paths.
 - Every important relation and claim has status, confidence, and evidence or an explicit unknown.
 - Impact goals combine a protocol invariant with a concrete protocol case.
 - Active jobs test whether identities, modes, lifecycle stages, and produced artifacts remain bound to the context assumed by sensitive consumers.
 - Active jobs persist a full attacker-lifecycle model; material gaps remain explicit subgoals, and completion or saturation requires closure or concrete kill evidence.
 - Precision-triggered jobs identify the rounding beneficiary and bound path dependence, accumulated state drift, downstream amplification, and full-cycle economics.
-- Job selection records why the direction deserves resources, its cheapest kill check, its causal-surface boundary, and how it differs from prior coverage.
+- Job selection presents the ranked shortlist and records the user's choice or existing selection authority, the next check, and the difference from prior coverage.
 - Retrieval remains bounded to relevant rows and source spans.
 - Rejected paths preserve kill evidence and reopen conditions.
 - Novelty is checked before reporting.

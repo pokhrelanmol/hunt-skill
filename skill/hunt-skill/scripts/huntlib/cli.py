@@ -25,7 +25,15 @@ from .db import (
     upsert_search,
     utcnow,
 )
-from .gates import NOVELTY_SOURCES, novelty_gate, poc_gate, record_poc_approval, report_gate
+from .gates import (
+    CODE_VALIDATION_FIELDS,
+    NOVELTY_SOURCES,
+    code_validation_gate,
+    novelty_gate,
+    poc_gate,
+    record_poc_approval,
+    report_gate,
+)
 from .scope import (
     capture_snapshot,
     current_scope,
@@ -633,21 +641,9 @@ def cmd_hypothesis_upsert(args) -> None:
     if not title or not claim:
         raise ValueError("hypothesis title and claim are required")
     if status == "CODE_VALIDATED":
-        required = {
-            "attacker_capability": choose("attacker_capability"),
-            "impact_goal_id": choose("impact_goal_id", None),
-            "root_cause_key": choose("root_cause_key"),
-            "next_check": choose("next_check"),
-        }
-        missing = [key for key, value in required.items() if not value]
-        if missing:
-            raise ValueError(f"CODE_VALIDATED missing fields: {', '.join(missing)}")
-        impact = conn.execute(
-            "SELECT id FROM impact_goals WHERE id = ? AND status IN ('READY', 'COVERED')",
-            (required["impact_goal_id"],),
-        ).fetchone()
-        if impact is None:
-            raise ValueError("CODE_VALIDATED hypothesis requires a READY or COVERED impact goal")
+        gate = code_validation_gate(conn, {field: choose(field) for field in CODE_VALIDATION_FIELDS})
+        if not gate["ok"]:
+            raise ValueError("; ".join(gate["reasons"]))
     now = utcnow()
     conn.execute(
         "INSERT INTO hypotheses(id, title, claim, claim_hash, status, confidence, severity_candidate, "
@@ -697,15 +693,9 @@ def cmd_hypothesis_status(args) -> None:
     if status == "POC_BLOCKED" and not args.reason:
         raise ValueError("POC_BLOCKED requires --reason")
     if status == "CODE_VALIDATED":
-        required = {
-            "attacker_capability": row["attacker_capability"],
-            "impact_goal_id": row["impact_goal_id"],
-            "root_cause_key": row["root_cause_key"],
-            "next_check": row["next_check"],
-        }
-        missing = [key for key, value in required.items() if not value]
-        if missing:
-            raise ValueError(f"CODE_VALIDATED missing fields: {', '.join(missing)}")
+        gate = code_validation_gate(conn, dict(row))
+        if not gate["ok"]:
+            raise ValueError("; ".join(gate["reasons"]))
     if status == "POC_VALIDATED":
         current_poc = poc_gate(conn, repo, args.id)
         if not current_poc["ok"]:
@@ -1139,6 +1129,7 @@ def job_view(conn, row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
             "variant_distinctness": job_fact(conn, item["id"], "JOB_VARIANT_DISTINCTNESS"),
             "next_check": job_fact(conn, item["id"], "JOB_NEXT_CHECK"),
             "attack_model": job_fact(conn, item["id"], "JOB_ATTACK_MODEL"),
+            "research_priority": job_fact(conn, item["id"], "JOB_PRIORITY"),
         }
     )
     return item
@@ -1718,10 +1709,12 @@ def cmd_lint(args) -> None:
         if missing:
             issues.append({"type": "ready_impact_incomplete", "id": row["id"], "missing": missing})
     for row in conn.execute("SELECT * FROM hypotheses WHERE status='CODE_VALIDATED' ORDER BY id"):
-        required = ("attacker_capability", "impact_goal_id", "root_cause_key", "next_check")
-        missing = [column for column in required if not row[column]]
-        if missing:
-            issues.append({"type": "validated_hypothesis_incomplete", "id": row["id"], "missing": missing})
+        gate = code_validation_gate(conn, dict(row))
+        if not gate["ok"]:
+            issues.append({
+                "type": "validated_hypothesis_incomplete", "id": row["id"],
+                "missing": gate["missing"], "reasons": gate["reasons"],
+            })
     fts_count = conn.execute("SELECT count(*) FROM search_fts").fetchone()[0]
     source_count = sum(conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0] for table in SEARCHABLE_TABLES)
     if fts_count != source_count:

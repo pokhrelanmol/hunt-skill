@@ -26,6 +26,7 @@
 **Entry:** The exchange produced reusable protocol knowledge, a lead, or kill evidence.
 
 1. Update the relevant SQLite record.
+   When new context contradicts an assumption or changes a rejected/parked direction, link it to the affected records and recommend reassessment. Follow [Job selection](../references/job-ideation.md) before switching to that direction.
 2. Update compact Markdown only when active focus changed.
 
 **Exit:** Future continuation can retrieve the result by ID.

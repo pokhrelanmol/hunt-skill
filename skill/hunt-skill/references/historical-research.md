@@ -6,7 +6,7 @@ Historical material supplies hypotheses and duplicate checks. It does not replac
 
 ### Job-Idea Generation
 
-Use this after basic RECON through [agent-driven job ideation](job-ideation.md).
+Use this after structural RECON through [agent-driven job ideation](job-ideation.md).
 
 1. Start from a locally derived invariant, decision point, or attacker objective; select only checklist questions with concrete current-code triggers.
 2. For the highest-value seed, inspect at most one closely related accepted finding or reproduced exploit when available.

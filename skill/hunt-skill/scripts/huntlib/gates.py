@@ -10,6 +10,26 @@ from .scope import current_scope, latest_snapshot
 
 NOVELTY_SOURCES = {"repo-known", "similar-audit", "solodit", "hack-registry"}
 PASSING_OVERLAPS = {"NEW", "DISTINCT"}
+CODE_VALIDATION_FIELDS = ("attacker_capability", "impact_goal_id", "root_cause_key", "next_check")
+
+
+def code_validation_gate(conn, hypothesis: dict[str, Any]) -> dict[str, Any]:
+    """Check record prerequisites, not the semantic validity of a finding."""
+    missing = [
+        field for field in CODE_VALIDATION_FIELDS
+        if not str(hypothesis.get(field) or "").strip()
+    ]
+    reasons = []
+    if missing:
+        reasons.append(f"CODE_VALIDATED missing fields: {', '.join(missing)}")
+    if "impact_goal_id" not in missing:
+        impact = conn.execute(
+            "SELECT id FROM impact_goals WHERE id=? AND status IN ('READY', 'COVERED')",
+            (hypothesis["impact_goal_id"],),
+        ).fetchone()
+        if impact is None:
+            reasons.append("CODE_VALIDATED hypothesis requires a READY or COVERED impact goal")
+    return {"ok": not reasons, "missing": missing, "reasons": reasons}
 
 
 def novelty_gate(conn, hypothesis_id: str) -> dict[str, Any]:

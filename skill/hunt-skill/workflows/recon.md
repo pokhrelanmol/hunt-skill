@@ -1,6 +1,6 @@
 # RECON Workflow
 
-RECON has two depths: basic global context for interactive hunting, and deep deterministic local coverage for the active job.
+RECON has two depths: a reusable global structural map of the agreed scope, and deep local coverage for the chosen Job. It owns graph construction; investigation may return here to resolve new dependencies.
 
 ## Phase 1: Bound The Map
 
@@ -9,14 +9,16 @@ RECON has two depths: basic global context for interactive hunting, and deep det
 
 **Exit:** Scope, baseline, support-only paths, and recon depth are explicit.
 
-## Phase 2: Basic Global Recon
+## Phase 2: Global Structural Recon
 
 1. Understand architecture, actors, assets, money/value flow, integrations, major lifecycles, documented behavior, and important invariants.
-2. Enumerate the most important permissionless/state-changing surfaces enough to propose meaningful research.
-3. Use [agent-driven job ideation](../references/job-ideation.md) to compare prior coverage and derive lightweight candidate questions from the observed architecture, state, value flow, and sensitive consumers. Apply triggered checklist questions and real edge cases only as lenses that challenge or expand those local candidates.
-4. Store material unknowns as `UNKNOWN`; ask the user only when intended behavior matters and cannot be established from code/docs.
+2. Inventory every production contract/module in the agreed scope, all external/public state-changing entrypoints (including inherited functions, fallback/receive and callbacks), persistent state roots, and external dependencies. Include read-only interfaces consumed by integrations. Internal helpers and modifiers connect their callers to direct effects. Separate supporting tests/mocks from production paths.
+3. Prefer compiler/build artifacts for declarations, direct calls, and provable reads/writes. Record dynamic dispatch, storage aliases, assembly, missing artifacts, and unknown external targets as extraction gaps. Do not invent resolved edges or claim that `auditctl` itself extracts compiler graphs.
+4. Store compact `RECON_COVERAGE` facts against module/function nodes: baseline, mapped declarations/edges, unresolved areas, exclusions with reasons, and next extraction check. Compare the inventory with scoped files; give every scoped module a disposition. Record zero effects separately from unexamined effects. Reuse unchanged coverage and refresh affected records only.
+5. Review bounded neighborhoods for discovery signals: shared state with multiple consumers or differently guarded writers, artifacts crossing subsystem boundaries, and writes/reads spanning different lifecycle stages. A relationship alone is not a defect. Trust differences, coupled state, and context collisions require evidence and remain `INFERRED` or `UNKNOWN` until checked. Preserve useful signals with `fact-upsert --kind OBSERVATION --subject-id <graph-anchor>` and source evidence; do not attach unrelated discoveries to the active Job or activate another Job.
+6. Pass the inventory, observations, and material gaps to [Job ideation](../references/job-ideation.md). Broad mapping does not require argument provenance, complete transitive effects, economic feasibility, or full lifecycle closure for every function. If extraction is incomplete, state the limit; block only research that depends on the missing relationships.
 
-**Exit:** Hunt can propose one niche invariant or `ACTIVE` job without claiming the whole repository graph is complete.
+**Exit:** The agreed scope has a queryable inventory and explicit coverage gaps, sufficient to propose ranked Jobs without claiming a complete audit.
 
 ## Phase 3: Deep Local Recon
 
@@ -29,6 +31,12 @@ RECON has two depths: basic global context for interactive hunting, and deep det
 5. For relevant call sites, record caller, declared callee, dispatch kind, condition, argument expression, callee parameter binding, argument origin IDs, and return use.
 6. Represent modifiers, `using for`, tuple returns, callbacks, hooks, internal/external/library/super/virtual/interface/low-level/delegate/static/dynamic dispatch, and runtime target candidates when relevant to the job.
 7. Mark mechanically proven facts `VERIFIED`, semantic/economic interpretations and possible runtime targets `INFERRED`, and unresolved dispatch or assembly `UNKNOWN`.
+
+### Integration Semantics
+
+For each material external value or operation, trace the local consumer to the actual dependency implementation and its specification. Record what the value represents, units/precision, whether it is stored, projected, or settled, what updates it, and when the consuming transaction observes that update. Check that local accounting and external execution use the same effective state, especially around interest/fee accrual, checkpoints, rebases, settlement, and callbacks. A trusted provider may return a valid cached value that is unsuitable for the consumer's assumption; no manipulated input is required for an integration mismatch.
+
+Pin dependency versions or deployed implementations and material configuration; use [live evidence](../references/live-investigation.md) when deployment behavior matters. Read only the relevant dependency paths and authoritative docs. If unavailable, retain the exact assumption as `UNKNOWN`; do not substitute a mock or the local interface for its implementation. Dependency behavior is part of causal understanding even when the dependency itself is outside reporting scope.
 
 **Exit:** The active job's selected surface can be queried for exact local graph/context without loading the whole repository.
 

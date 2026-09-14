@@ -19,7 +19,7 @@
 3. Test intentional-design and harmless-outcome explanations.
 4. Reject immediately when concrete evidence kills a material element.
 
-**Exit:** Every material promotion criterion is verified, disproven, or named as missing.
+**Exit:** Every material criterion in the canonical [evidence-promotion gate](../references/evidence-promotion.md) is verified, disproven, or named as missing. CLI field checks establish record completeness only; they do not certify the reasoning.
 
 ## Phase 3: Novelty And Skeptic
 

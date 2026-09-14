@@ -49,7 +49,7 @@ python3 "$AUDITCTL" lint --repo .
 
 ```bash
 python3 "$AUDITCTL" job-upsert --repo . --id JOB-001 \
-  --goal "Can partial settlement make cancellation restore too much collateral?" --status ACTIVE \
+  --goal "Can partial settlement make cancellation restore too much collateral?" --status NEXT \
   --attack-model "capability: public settle; transient: partial state; durable: restored claim; unwind: UNKNOWN; consumer: cancel; impact: excess collateral; reset/repeat: UNKNOWN; economics: UNKNOWN"
 python3 "$AUDITCTL" job-list --repo . --limit 30
 python3 "$AUDITCTL" job-list --repo . --linked-record impact:... --limit 20
@@ -82,6 +82,8 @@ python3 "$AUDITCTL" probe-add --repo . --job-id JOB-001 \
 ```
 
 `ACTIVE` and `DONE` require a compact `--attack-model`. Unknown stages are valid when named; the gate prevents an agent from silently skipping lifecycle composition, not from starting a promising investigation.
+
+Create candidates as `NEXT` and follow [the ranked selection workflow](job-ideation.md#4-rank-and-present-for-selection) before setting the chosen Job `ACTIVE`. Store a candidate's research priority with `fact-upsert --id fact:JOB-001:priority --subject-id JOB-001 --kind JOB_PRIORITY --statement "P1; rationale: ..."`; reuse that ID when reranking. `job-list` and `research-packet` expose it as `research_priority`, without changing recency order. Global coverage and observations use the same command with their own stable fact ID, a module/state/dependency subject, and kind `RECON_COVERAGE` or `OBSERVATION`; `observation-add --job-id` is for observations belonging to a particular Job.
 
 Before creating a Job, use bounded `job-list`, `impact-list`, and graph queries to compare it with prior coverage. A new variant requires `--variant-delta`, `--inherits`, `--distinctness`, and `--next-check`; its research packet reuses parent-lineage graph anchors. `--saturate-family` is valid only for a `DONE` Job. A saturated family rejects new variants unless `--reopen-family-reason` records genuinely new evidence. `DONE` and `BLOCKED` require a result that records coverage, disposition, unresolved segments, and the reopen condition. Keep only one `ACTIVE` job and stop for human steering before switching to an independent research direction. User context starts as `UNKNOWN` unless independently verified. A probe is `INFERRED` by default; use `--executed --status VERIFIED --harness <test-or-trace>` only after actually running it.
 
