@@ -15,7 +15,7 @@ High-value families:
 
 - `0`, `1 wei`, dust.
 - min/threshold/precision `-1`, exact, `+1`.
-- partial operations.
+- partial, clamped, capped, or fail-open operations: compare requested, applied, actual, reported, and downstream-accounted effects.
 - repeated operations.
 - equivalent-path and split/merge comparison, such as `deposit(100)` vs `deposit(40); deposit(60)`.
 - economic inverse and round-trip comparison, such as mint/redeem, deposit/withdraw, exact-in/exact-out, join/exit, borrow/repay, or add/remove liquidity.
@@ -24,6 +24,7 @@ High-value families:
 - nonlinear boundaries where a small numerical delta changes a tick, branch, liquidity region, health state, debt, reserve, share supply, or saved-balance condition.
 - intended proxy/delegate/callback execution vs direct or forwarded execution, comparing effective caller, storage owner, authorization, and affected account.
 - operation reordering.
+- guard extent: compare direct, nested/reentrant, later-same-transaction, later-transaction, and alternate-actor calls against the same protected resource.
 - different actors.
 - two distinct logical instances resolving to the same key, account, resource, range, identifier, or artifact.
 - optional-mode matrices, including flag on/off crossed with empty, zero, default, stale, or non-empty values.
